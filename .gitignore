@@ -1,0 +1,26 @@
+# Environment and credentials
+.env
+.env.*
+*.env
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# n8n instance-specific metadata
+n8n-database.sqlite
+n8n-database.sqlite-journal
+.n8n/
+n8nEventLog*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

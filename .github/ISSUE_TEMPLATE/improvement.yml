@@ -1,0 +1,29 @@
+name: Improvement
+description: Suggest improvements to existing workflows or documentation
+title: "[IMPROVEMENT] "
+labels: ["improvement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggestions for improving existing patterns, documentation, or sample payloads.
+  - type: input
+    id: workflow
+    attributes:
+      label: Workflow or File
+      description: Which workflow or file does this relate to?
+      placeholder: "e.g. workflows/retry-with-backoff.json"
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Behavior
+      description: What does it do now?
+    validations:
+      required: true
+  - type: textarea
+    id: improved
+    attributes:
+      label: Suggested Improvement
+      description: What should it do instead, and why?
+    validations:
+      required: true
