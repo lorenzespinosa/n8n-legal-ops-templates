@@ -1,0 +1,16 @@
+{
+  "case_id": "matter_10003",
+  "client": "Chen, David",
+  "case_type": "criminal_defense",
+  "ai_classification": {
+    "type": "criminal_defense",
+    "confidence": 0.92,
+    "urgency": "high",
+    "reason": "Arraignment scheduled within 48 hours"
+  },
+  "assigned_attorney": "M. Torres",
+  "assignment_method": "ai_recommended_human_approved",
+  "human_review": true,
+  "reviewed_by": "intake_coordinator",
+  "notifications_sent": ["slack_attorney", "slack_intake_channel"]
+}

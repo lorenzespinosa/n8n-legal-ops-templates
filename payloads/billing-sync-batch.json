@@ -1,0 +1,25 @@
+{
+  "sync_date": "2024-11-15",
+  "matters": [
+    {
+      "matter_id": "matter_10001",
+      "client": "Rodriguez, Maria",
+      "type": "personal_injury",
+      "unbilled_hours": 3.5,
+      "unbilled_amount": 1225.00,
+      "last_activity": "2024-11-14",
+      "attorney": "J. Greenfield"
+    },
+    {
+      "matter_id": "matter_10002",
+      "client": "Wilson, James",
+      "type": "dui_defense",
+      "unbilled_hours": 1.0,
+      "unbilled_amount": 350.00,
+      "last_activity": "2024-11-13",
+      "attorney": "S. Park"
+    }
+  ],
+  "total_unbilled": 1575.00,
+  "conflicts_detected": 0
+}

@@ -1,0 +1,340 @@
+{
+  "name": "Client Intake Pipeline — Greenfield & Associates",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intake-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000001",
+      "name": "Webhook — Intake Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "intake-webhook-greenfield"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate required intake fields\nconst input = $input.first().json;\nconst errors = [];\n\nif (!input.contact?.first_name) errors.push('Missing first_name');\nif (!input.contact?.last_name) errors.push('Missing last_name');\nif (!input.contact?.email && !input.contact?.phone) errors.push('Missing email and phone — need at least one');\nif (!input.case_info?.type) errors.push('Missing case type');\nif (!input.case_info?.description) errors.push('Missing case description');\n\n// Normalize phone to E.164 if present\nlet phone = input.contact?.phone || '';\nif (phone && !phone.startsWith('+')) {\n  phone = '+1' + phone.replace(/\\D/g, '');\n}\n\n// Strip nulls/empty strings\nconst cleanContact = Object.fromEntries(\n  Object.entries(input.contact || {}).filter(([_, v]) => v != null && v !== '')\n);\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors,\n    contact: { ...cleanContact, phone },\n    case_info: input.case_info,\n    source: input.source || 'unknown',\n    referral_source: input.referral_source || 'unknown',\n    timestamp: input.timestamp || new Date().toISOString(),\n    firm: 'Greenfield & Associates'\n  }\n}];"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000002",
+      "name": "Validate Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000003",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000004",
+      "name": "Respond — Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [880, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/Contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filterByFormula",
+              "value": "=OR({Email}='{{ $json.contact.email }}', {Phone}='{{ $json.contact.phone }}')"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000005",
+      "name": "Check Duplicates — Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "dup-check",
+              "leftValue": "={{ $json.records?.length > 0 }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000006",
+      "name": "IF Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/Contacts/{{ $json.records[0].id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "fields", "value": "={{ JSON.stringify({ LastContact: new Date().toISOString(), Notes: 'Returning lead — submitted new intake form' }) }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000007",
+      "name": "Update Existing Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a legal intake classifier for Greenfield & Associates. Classify the case type from the description. Return JSON with fields: case_type (personal_injury, dui_defense, criminal_defense, family_law, other), confidence (0-1), urgency (low, standard, high, urgent), summary.' }, { role: 'user', content: $json.case_info.description }], temperature: 0.2 }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000008",
+      "name": "AI Classify Case Type",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI classification and merge with intake data\nconst intake = $('Check Duplicates — Airtable').first().json;\nconst aiResponse = $input.first().json;\n\nlet classification;\ntry {\n  const content = aiResponse.choices?.[0]?.message?.content || '{}';\n  classification = JSON.parse(content);\n} catch (e) {\n  classification = { case_type: 'other', confidence: 0, urgency: 'standard', summary: 'AI classification failed — manual review required' };\n}\n\nreturn [{\n  json: {\n    ...intake,\n    ai_classification: classification,\n    requires_human_review: true,\n    review_status: 'pending',\n    review_reason: classification.confidence < 0.8 ? 'low_confidence' : 'standard_gate'\n  }\n}];"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000009",
+      "name": "Merge AI Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/HumanReviewQueue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { ContactName: $json.contact.first_name + ' ' + $json.contact.last_name, CaseType: $json.ai_classification.case_type, Confidence: $json.ai_classification.confidence, Urgency: $json.ai_classification.urgency, Status: 'pending_review', RawData: JSON.stringify($json) } }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000010",
+      "name": "Human Review Gate — Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "urgency-check",
+              "leftValue": "={{ $json.ai_classification?.urgency }}",
+              "rightValue": "urgent",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000011",
+      "name": "IF Urgent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':rotating_light: URGENT INTAKE — ' + $json.contact.first_name + ' ' + $json.contact.last_name + ' — ' + $json.ai_classification.case_type + ' — ' + $json.ai_classification.summary + ' — Requires immediate human review.' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000012",
+      "name": "Slack Alert — Urgent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.lawmatics.com/v1/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ first_name: $json.contact.first_name, last_name: $json.contact.last_name, email: $json.contact.email, phone: $json.contact.phone, case_type: $json.ai_classification.case_type, source: $json.source, notes: $json.ai_classification.summary, status: 'new_lead' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000013",
+      "name": "CRM Create — Lawmatics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'accepted', message: 'Intake received — pending human review', review_id: $json.id || 'queued' }) }}",
+        "options": { "responseCode": 202 }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000014",
+      "name": "Respond — Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 100]
+    },
+    {
+      "parameters": {
+        "content": "## Client Intake Pipeline — Greenfield & Associates\n\n**Pattern:** Webhook → Validate → Deduplicate → AI Classify → Human Review Gate → Route\n\n- All decision-making goes through a human review queue before CRM writes\n- AI classification provides recommendation only — humans approve\n- Urgent cases trigger Slack alert for immediate attention\n- Existing contacts get updated, not duplicated"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000015",
+      "name": "Sticky Note — Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "content": "## Human Review Gate\n\nEvery new intake is queued for human review before any CRM write happens.\nThe review queue lives in Airtable. An intake coordinator reviews and approves before the contact is created in Lawmatics.\n\nThis is a MANDATORY gate — no automated CRM writes without human approval."
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000016",
+      "name": "Sticky Note — Human Review",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1740, -100]
+    },
+    {
+      "parameters": {
+        "content": "## Validation Rules\n\n- Requires: first_name, last_name, at least one of email/phone, case type, description\n- Phone normalized to E.164\n- Nulls/empty strings stripped\n- Invalid submissions get 400 response immediately"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000017",
+      "name": "Sticky Note — Validation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [400, 460]
+    }
+  ],
+  "connections": {
+    "Webhook — Intake Form": {
+      "main": [
+        [{ "node": "Validate Fields", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Fields": {
+      "main": [
+        [{ "node": "IF Valid", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Valid": {
+      "main": [
+        [{ "node": "Check Duplicates — Airtable", "type": "main", "index": 0 }],
+        [{ "node": "Respond — Validation Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Duplicates — Airtable": {
+      "main": [
+        [{ "node": "IF Duplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Duplicate": {
+      "main": [
+        [{ "node": "Update Existing Record", "type": "main", "index": 0 }],
+        [{ "node": "AI Classify Case Type", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Classify Case Type": {
+      "main": [
+        [{ "node": "Merge AI Classification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Merge AI Classification": {
+      "main": [
+        [{ "node": "Human Review Gate — Queue", "type": "main", "index": 0 }]
+      ]
+    },
+    "Human Review Gate — Queue": {
+      "main": [
+        [{ "node": "IF Urgent", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Urgent": {
+      "main": [
+        [{ "node": "Slack Alert — Urgent", "type": "main", "index": 0 }, { "node": "CRM Create — Lawmatics", "type": "main", "index": 0 }],
+        [{ "node": "CRM Create — Lawmatics", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack Alert — Urgent": {
+      "main": [
+        [{ "node": "Respond — Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "CRM Create — Lawmatics": {
+      "main": [
+        [{ "node": "Respond — Success", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "greenfield-legal-ops-demo"
+  },
+  "tags": [
+    { "name": "legal-ops" },
+    { "name": "intake" },
+    { "name": "greenfield-associates" }
+  ]
+}

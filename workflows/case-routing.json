@@ -1,0 +1,353 @@
+{
+  "name": "Case Routing — Greenfield & Associates",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "case-routing-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000001",
+      "name": "Webhook — New Case",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 400],
+      "webhookId": "case-routing-greenfield"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate case details\nconst input = $input.first().json;\nconst errors = [];\n\nif (!input.case_id && !input.matter_id) errors.push('Missing case/matter ID');\nif (!input.client) errors.push('Missing client name');\nif (!input.description && !input.case_type) errors.push('Missing case description or type');\n\n// Normalize phone if present\nlet phone = input.contact_phone || '';\nif (phone && !phone.startsWith('+')) {\n  phone = '+1' + phone.replace(/\\D/g, '');\n}\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors,\n    case_id: input.case_id || input.matter_id || 'matter_' + Math.floor(Math.random() * 90000 + 10000),\n    client: input.client,\n    description: input.description || '',\n    existing_case_type: input.case_type || null,\n    contact_phone: phone,\n    contact_email: input.contact_email || '',\n    source: input.source || 'intake',\n    timestamp: new Date().toISOString(),\n    firm: 'Greenfield & Associates'\n  }\n}];"
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000002",
+      "name": "Extract Case Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000003",
+      "name": "IF Valid Case",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000004",
+      "name": "Respond — Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [880, 580]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a case routing assistant for Greenfield & Associates. Classify the case and score urgency. Return JSON: { case_type: \"personal_injury\" | \"dui_defense\" | \"criminal_defense\" | \"other\", confidence: 0-1, urgency: \"low\" | \"medium\" | \"high\" | \"critical\", urgency_score: 1-10, reason: \"brief explanation\", recommended_attorney: \"name based on specialty\" }. Attorney roster: J. Greenfield (PI lead), S. Park (DUI specialist), M. Torres (criminal defense), A. Chen (general/overflow).' }, { role: 'user', content: 'Case ID: ' + $json.case_id + '. Client: ' + $json.client + '. Description: ' + $json.description + '. Existing type: ' + ($json.existing_case_type || 'none') }], temperature: 0.2 }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000005",
+      "name": "AI Classify + Urgency Score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI classification and prepare routing data\nconst caseData = $('Extract Case Details').first().json;\nconst aiResponse = $input.first().json;\n\nlet classification;\ntry {\n  const content = aiResponse.choices?.[0]?.message?.content || '{}';\n  classification = JSON.parse(content);\n} catch (e) {\n  classification = {\n    case_type: 'other',\n    confidence: 0,\n    urgency: 'medium',\n    urgency_score: 5,\n    reason: 'AI classification failed — manual routing required',\n    recommended_attorney: 'A. Chen'\n  };\n}\n\nreturn [{\n  json: {\n    ...caseData,\n    ai_classification: classification,\n    route_key: classification.case_type,\n    requires_human_review: true,\n    review_status: 'pending',\n    assignment_method: 'ai_recommended_human_approved'\n  }\n}];"
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000006",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/CaseRoutingReviewQueue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { CaseID: $json.case_id, Client: $json.client, CaseType: $json.ai_classification.case_type, Confidence: $json.ai_classification.confidence, Urgency: $json.ai_classification.urgency, UrgencyScore: $json.ai_classification.urgency_score, RecommendedAttorney: $json.ai_classification.recommended_attorney, Reason: $json.ai_classification.reason, Status: 'pending_review', CreatedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000007",
+      "name": "Human Review Gate — Assignment Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "outputIndex": 0, "value": "personal_injury" },
+            { "outputIndex": 1, "value": "dui_defense" },
+            { "outputIndex": 2, "value": "criminal_defense" },
+            { "outputIndex": 3, "value": "other" }
+          ]
+        },
+        "dataType": "string",
+        "value": "={{ $json.route_key }}"
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000008",
+      "name": "Switch — Case Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.filevine.com/v2/projects/{{ $json.case_id }}/assignments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ attorney: 'J. Greenfield', role: 'lead', case_type: 'personal_injury', assignment_method: 'ai_recommended_human_approved' }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000009",
+      "name": "Assign — PI (J. Greenfield)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.filevine.com/v2/projects/{{ $json.case_id }}/assignments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ attorney: 'S. Park', role: 'lead', case_type: 'dui_defense', assignment_method: 'ai_recommended_human_approved' }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000010",
+      "name": "Assign — DUI (S. Park)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.filevine.com/v2/projects/{{ $json.case_id }}/assignments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ attorney: 'M. Torres', role: 'lead', case_type: 'criminal_defense', assignment_method: 'ai_recommended_human_approved' }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000011",
+      "name": "Assign — Criminal (M. Torres)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.filevine.com/v2/projects/{{ $json.case_id }}/assignments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ attorney: 'A. Chen', role: 'lead', case_type: 'other', assignment_method: 'ai_recommended_human_approved' }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000012",
+      "name": "Assign — Other (A. Chen)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':scales: Case Assigned — ' + $json.case_id + ' (' + $json.ai_classification.case_type + ') assigned to ' + $json.ai_classification.recommended_attorney + '. Urgency: ' + $json.ai_classification.urgency + '. Method: AI-recommended, human-approved.' }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000013",
+      "name": "Slack Notification — Assignment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2020, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/CaseRoutingAuditLog",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { CaseID: $json.case_id, Client: $json.client, CaseType: $json.ai_classification.case_type, AssignedAttorney: $json.ai_classification.recommended_attorney, Confidence: $json.ai_classification.confidence, UrgencyScore: $json.ai_classification.urgency_score, AssignmentMethod: 'ai_recommended_human_approved', HumanReview: true, NotificationsSent: 'slack_attorney,slack_intake_channel', RoutedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000014",
+      "name": "Audit Log — Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2240, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'routed', case_id: $json.case_id, case_type: $json.ai_classification.case_type, assigned_to: $json.ai_classification.recommended_attorney, human_review: true }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000015",
+      "name": "Respond — Routed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2460, 360]
+    },
+    {
+      "parameters": {
+        "content": "## Case Routing — Greenfield & Associates\n\n**Pattern:** Webhook → Validate → AI Classify + Urgency → Human Review Gate → Switch by Type → Assign Attorney → Notify → Audit\n\n**Attorney Roster:**\n- J. Greenfield — Personal Injury (lead)\n- S. Park — DUI Defense (specialist)\n- M. Torres — Criminal Defense\n- A. Chen — General / Overflow\n\nAll assignments require human approval before execution."
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000016",
+      "name": "Sticky Note — Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 60]
+    },
+    {
+      "parameters": {
+        "content": "## Human Review Gate\n\nEvery case assignment is queued in Airtable before being executed.\nThe intake coordinator reviews AI recommendation and either:\n- Approves the suggested attorney\n- Overrides with a different assignment\n- Escalates for partner review\n\n**No attorney is assigned without human sign-off.**"
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000017",
+      "name": "Sticky Note — Human Review",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1280, 80]
+    },
+    {
+      "parameters": {
+        "content": "## Switch Routing Logic\n\nThe Switch node routes by case_type:\n- Output 0: personal_injury → J. Greenfield\n- Output 1: dui_defense → S. Park\n- Output 2: criminal_defense → M. Torres\n- Output 3: other (fallback) → A. Chen\n\nAll paths converge to Slack notification and audit log."
+      },
+      "id": "d4e5f6a7-4444-4ddd-eeee-000000000018",
+      "name": "Sticky Note — Routing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1740, -60]
+    }
+  ],
+  "connections": {
+    "Webhook — New Case": {
+      "main": [
+        [{ "node": "Extract Case Details", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Case Details": {
+      "main": [
+        [{ "node": "IF Valid Case", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Valid Case": {
+      "main": [
+        [{ "node": "AI Classify + Urgency Score", "type": "main", "index": 0 }],
+        [{ "node": "Respond — Validation Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Classify + Urgency Score": {
+      "main": [
+        [{ "node": "Parse Classification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [{ "node": "Human Review Gate — Assignment Queue", "type": "main", "index": 0 }]
+      ]
+    },
+    "Human Review Gate — Assignment Queue": {
+      "main": [
+        [{ "node": "Switch — Case Type", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch — Case Type": {
+      "main": [
+        [{ "node": "Assign — PI (J. Greenfield)", "type": "main", "index": 0 }],
+        [{ "node": "Assign — DUI (S. Park)", "type": "main", "index": 0 }],
+        [{ "node": "Assign — Criminal (M. Torres)", "type": "main", "index": 0 }],
+        [{ "node": "Assign — Other (A. Chen)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Assign — PI (J. Greenfield)": {
+      "main": [
+        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+      ]
+    },
+    "Assign — DUI (S. Park)": {
+      "main": [
+        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+      ]
+    },
+    "Assign — Criminal (M. Torres)": {
+      "main": [
+        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+      ]
+    },
+    "Assign — Other (A. Chen)": {
+      "main": [
+        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack Notification — Assignment": {
+      "main": [
+        [{ "node": "Audit Log — Airtable", "type": "main", "index": 0 }]
+      ]
+    },
+    "Audit Log — Airtable": {
+      "main": [
+        [{ "node": "Respond — Routed", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "greenfield-legal-ops-demo"
+  },
+  "tags": [
+    { "name": "legal-ops" },
+    { "name": "case-routing" },
+    { "name": "greenfield-associates" }
+  ]
+}

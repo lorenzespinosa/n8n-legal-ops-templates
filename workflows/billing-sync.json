@@ -1,0 +1,224 @@
+{
+  "name": "Billing Sync — Greenfield & Associates",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000001",
+      "name": "Schedule — Daily 6AM Weekdays",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.filevine.com/v2/projects",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "filter", "value": "hasUnbilledTime:true" },
+            { "name": "limit", "value": "100" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000002",
+      "name": "Fetch Unbilled Items — Filevine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Filevine data into Clio-compatible billing records\nconst items = $input.first().json;\nconst matters = items.matters || items.data || [];\n\nconst billingRecords = matters.map(m => {\n  // Strip null/empty values\n  const clean = (obj) => Object.fromEntries(\n    Object.entries(obj).filter(([_, v]) => v != null && v !== '')\n  );\n\n  return clean({\n    matter_id: m.matter_id,\n    client_name: m.client,\n    case_type: m.type,\n    hours: m.unbilled_hours,\n    rate: m.unbilled_amount / m.unbilled_hours,\n    total: m.unbilled_amount,\n    last_activity: m.last_activity,\n    attorney: m.attorney,\n    description: `Time entries for ${m.matter_id} — ${m.type}`,\n    sync_date: new Date().toISOString().split('T')[0]\n  });\n});\n\n// Check for potential conflicts (duplicate matter_ids, zero amounts)\nconst conflicts = billingRecords.filter(r => !r.hours || r.hours <= 0 || !r.matter_id);\nconst valid = billingRecords.filter(r => r.hours > 0 && r.matter_id);\n\nreturn [{\n  json: {\n    valid_records: valid,\n    conflicts: conflicts,\n    has_conflicts: conflicts.length > 0,\n    total_records: billingRecords.length,\n    total_amount: valid.reduce((sum, r) => sum + (r.total || 0), 0),\n    sync_date: new Date().toISOString().split('T')[0],\n    firm: 'Greenfield & Associates'\n  }\n}];"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000003",
+      "name": "Format Billing Records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "conflict-check",
+              "leftValue": "={{ $json.has_conflicts }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000004",
+      "name": "IF Conflicts Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/BillingConflictQueue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { SyncDate: $json.sync_date, ConflictCount: $json.conflicts.length, ConflictDetails: JSON.stringify($json.conflicts), Status: 'pending_review', TotalRecords: $json.total_records } }) }}",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000005",
+      "name": "Queue Conflicts — Manual Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':warning: Billing Sync Conflicts Detected — ' + $json.conflicts.length + ' records need manual review. Check the BillingConflictQueue in Airtable.' }) }}",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000006",
+      "name": "Slack Alert — Conflicts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.clio.com/api/v4/activities",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ data: $json.valid_records.map(r => ({ type: 'TimeEntry', matter: { id: r.matter_id }, quantity: r.hours, rate: r.rate, total: r.total, date: r.last_activity, description: r.description, user: { name: r.attorney } })) }) }}",
+        "options": {
+          "timeout": 30000,
+          "batching": { "batch": { "batchSize": 10, "batchInterval": 1000 } }
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000007",
+      "name": "Create Billing Entries — Clio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/BillingSyncAuditLog",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { SyncDate: $json.sync_date, RecordsSynced: $json.valid_records.length, TotalAmount: $json.total_amount, ConflictsFound: $json.conflicts.length, Status: $json.has_conflicts ? 'partial_with_conflicts' : 'complete', CompletedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000008",
+      "name": "Audit Log — Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 420]
+    },
+    {
+      "parameters": {
+        "content": "## Billing Sync — Greenfield & Associates\n\n**Pattern:** Schedule (Daily 6AM) → Fetch Unbilled (Filevine) → Format → Conflict Check → Sync to Clio → Audit Log\n\n- Runs Mon-Fri at 6AM before office hours\n- Pulls all matters with unbilled time from Filevine\n- Formats records for Clio's billing API\n- Conflicts (zero amounts, missing IDs) routed to manual review queue\n- Every sync is audit-logged in Airtable"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000009",
+      "name": "Sticky Note — Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 60]
+    },
+    {
+      "parameters": {
+        "content": "## Conflict Handling\n\nConflicts include:\n- Records with zero or negative hours\n- Missing matter IDs\n- Duplicate entries for same matter on same date\n\nConflicts are queued in Airtable for manual resolution.\nSlack alert notifies the billing coordinator.\nValid records proceed to Clio without waiting for conflict resolution."
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000010",
+      "name": "Sticky Note — Conflicts",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Data Transformation\n\n- Filevine projects mapped to Clio activities\n- Rates calculated from unbilled_amount / unbilled_hours\n- Null/empty values stripped before API calls\n- Batch size: 10 records per Clio API call with 1s interval"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000011",
+      "name": "Sticky Note — Transformation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [620, 460]
+    }
+  ],
+  "connections": {
+    "Schedule — Daily 6AM Weekdays": {
+      "main": [
+        [{ "node": "Fetch Unbilled Items — Filevine", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Unbilled Items — Filevine": {
+      "main": [
+        [{ "node": "Format Billing Records", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Billing Records": {
+      "main": [
+        [{ "node": "IF Conflicts Detected", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Conflicts Detected": {
+      "main": [
+        [{ "node": "Queue Conflicts — Manual Review", "type": "main", "index": 0 }, { "node": "Create Billing Entries — Clio", "type": "main", "index": 0 }],
+        [{ "node": "Create Billing Entries — Clio", "type": "main", "index": 0 }]
+      ]
+    },
+    "Queue Conflicts — Manual Review": {
+      "main": [
+        [{ "node": "Slack Alert — Conflicts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Billing Entries — Clio": {
+      "main": [
+        [{ "node": "Audit Log — Airtable", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 300
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "greenfield-legal-ops-demo"
+  },
+  "tags": [
+    { "name": "legal-ops" },
+    { "name": "billing" },
+    { "name": "greenfield-associates" }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "name": "Missed Call Recovery — Greenfield & Associates",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "missed-call-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000001",
+      "name": "Webhook — OpenPhone Missed Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "missed-call-greenfield"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and normalize caller info from OpenPhone webhook\nconst input = $input.first().json;\n\n// Only process missed inbound calls\nif (input.direction !== 'inbound' || input.status !== 'missed') {\n  return [{ json: { skip: true, reason: 'Not a missed inbound call' } }];\n}\n\n// Normalize phone to E.164\nlet phone = input.from || '';\nif (phone && !phone.startsWith('+')) {\n  phone = '+1' + phone.replace(/\\D/g, '');\n}\n\nreturn [{\n  json: {\n    skip: false,\n    caller: {\n      phone: phone,\n      name: input.contact?.name || 'Unknown Caller',\n      existing_client: input.contact?.existing_client || false\n    },\n    call: {\n      timestamp: input.timestamp,\n      to: input.to,\n      duration: input.duration,\n      has_voicemail: input.voicemail || false\n    },\n    firm: 'Greenfield & Associates'\n  }\n}];"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000002",
+      "name": "Extract Caller Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000003",
+      "name": "IF Missed Inbound",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a legal intake assistant for Greenfield & Associates. Based on the caller info, classify the likely intent. Return JSON: { intent: \"new_client\" | \"existing_client\" | \"solicitor\" | \"unknown\", confidence: 0-1, suggested_response: \"brief SMS text\", priority: \"high\" | \"medium\" | \"low\" }' }, { role: 'user', content: 'Missed call from ' + $json.caller.name + ' (' + $json.caller.phone + '). Existing client: ' + $json.caller.existing_client + '. Has voicemail: ' + $json.call.has_voicemail }], temperature: 0.2 }) }}",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000004",
+      "name": "AI Intent Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and prepare follow-up data\nconst callerData = $('Extract Caller Info').first().json;\nconst aiResponse = $input.first().json;\n\nlet classification;\ntry {\n  const content = aiResponse.choices?.[0]?.message?.content || '{}';\n  classification = JSON.parse(content);\n} catch (e) {\n  classification = { intent: 'unknown', confidence: 0, suggested_response: 'We missed your call at Greenfield & Associates. How can we help?', priority: 'medium' };\n}\n\nreturn [{\n  json: {\n    ...callerData,\n    ai_classification: classification,\n    is_potential_client: classification.intent === 'new_client',\n    sms_message: classification.suggested_response,\n    requires_human_review: true,\n    review_status: 'pending'\n  }\n}];"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000005",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "new-client-check",
+              "leftValue": "={{ $json.is_potential_client }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000006",
+      "name": "IF New Potential Client",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/HumanReviewQueue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { Type: 'missed_call_sms', CallerName: $json.caller.name, CallerPhone: $json.caller.phone, ProposedSMS: $json.sms_message, AIIntent: $json.ai_classification.intent, AIConfidence: $json.ai_classification.confidence, Status: 'pending_review', Priority: $json.ai_classification.priority, CreatedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000007",
+      "name": "Human Review Gate — SMS Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: '+15555550100', to: $json.caller.phone, text: $json.sms_message }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000008",
+      "name": "Send SMS Follow-up — OpenPhone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/MissedCallLog",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { CallerPhone: $json.caller.phone, CallerName: $json.caller.name, CallTimestamp: $json.call.timestamp, Intent: $json.ai_classification.intent, SMSSent: true, SMSMessage: $json.sms_message, FollowUpStatus: 'sms_sent', LoggedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000009",
+      "name": "Log to Staging — Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.airtable.com/v0/YOUR_BASE_ID/MissedCallLog",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { CallerPhone: $json.caller.phone, CallerName: $json.caller.name, CallTimestamp: $json.call.timestamp, Intent: $json.ai_classification.intent, SMSSent: false, FollowUpStatus: 'no_action_not_potential_client', LoggedAt: new Date().toISOString() } }) }}",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000010",
+      "name": "Log Non-Client Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 360]
+    },
+    {
+      "parameters": {
+        "content": "## Missed Call Recovery — Greenfield & Associates\n\n**Pattern:** Webhook (OpenPhone) → Extract Info → AI Intent Classification → Human Review → SMS Follow-up → Log\n\n- Only processes missed inbound calls\n- AI classifies caller intent (new client, existing, solicitor, unknown)\n- SMS requires human approval before sending\n- All calls logged to Airtable regardless of action taken"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000011",
+      "name": "Sticky Note — Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "content": "## Human Review Gate\n\nBefore any SMS is sent, the proposed message is queued in Airtable for human review.\nIntake coordinator reviews the AI-suggested response, edits if needed, then approves.\n\nA separate n8n workflow (or Airtable automation) triggers the actual SMS send after approval.\n\n**No automated outbound messages without human sign-off.**"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000012",
+      "name": "Sticky Note — Human Review",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1500, -80]
+    },
+    {
+      "parameters": {
+        "content": "## Edge Cases\n\n- Repeated missed calls from same number: deduplicate in Airtable before SMS\n- Voicemail present: may skip SMS (caller left info already)\n- After-hours calls: queue for next business day review\n- Existing clients: route differently (may need case-specific response)"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000013",
+      "name": "Sticky Note — Edge Cases",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [880, 440]
+    }
+  ],
+  "connections": {
+    "Webhook — OpenPhone Missed Call": {
+      "main": [
+        [{ "node": "Extract Caller Info", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Caller Info": {
+      "main": [
+        [{ "node": "IF Missed Inbound", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Missed Inbound": {
+      "main": [
+        [{ "node": "AI Intent Classification", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "AI Intent Classification": {
+      "main": [
+        [{ "node": "Parse AI Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [{ "node": "IF New Potential Client", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF New Potential Client": {
+      "main": [
+        [{ "node": "Human Review Gate — SMS Approval", "type": "main", "index": 0 }],
+        [{ "node": "Log Non-Client Call", "type": "main", "index": 0 }]
+      ]
+    },
+    "Human Review Gate — SMS Approval": {
+      "main": [
+        [{ "node": "Send SMS Follow-up — OpenPhone", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send SMS Follow-up — OpenPhone": {
+      "main": [
+        [{ "node": "Log to Staging — Airtable", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "greenfield-legal-ops-demo"
+  },
+  "tags": [
+    { "name": "legal-ops" },
+    { "name": "missed-call" },
+    { "name": "greenfield-associates" }
+  ]
+}

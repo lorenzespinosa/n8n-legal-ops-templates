@@ -1,0 +1,19 @@
+{
+  "source": "web_form",
+  "timestamp": "2024-11-15T09:30:00Z",
+  "contact": {
+    "first_name": "Maria",
+    "last_name": "Rodriguez",
+    "email": "maria.r@example.com",
+    "phone": "+15555551234",
+    "preferred_contact": "phone"
+  },
+  "case_info": {
+    "type": "personal_injury",
+    "description": "Rear-ended at intersection on Nov 10, police report filed",
+    "incident_date": "2024-11-10",
+    "urgency": "standard"
+  },
+  "referral_source": "google_search",
+  "firm": "Greenfield & Associates"
+}

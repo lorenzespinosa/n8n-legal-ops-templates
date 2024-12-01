@@ -1,0 +1,14 @@
+{
+  "event": "call.completed",
+  "direction": "inbound",
+  "status": "missed",
+  "from": "+15555559876",
+  "to": "+15555550100",
+  "timestamp": "2024-11-15T10:15:00Z",
+  "duration": 0,
+  "voicemail": false,
+  "contact": {
+    "name": "James Wilson",
+    "existing_client": false
+  }
+}
