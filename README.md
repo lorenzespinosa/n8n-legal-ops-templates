@@ -79,3 +79,24 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). All contributions require the pre-subm
 ## License
 
 [MIT](./LICENSE) © 2024 Lorenz Espinosa
+
+---
+
+## Quick Start
+
+```bash
+# Clone and explore
+git clone https://github.com/lorenzespinosa/n8n-legal-ops-templates.git
+cd n8n-legal-ops-templates
+
+# Import workflows into n8n
+# 1. First import error handling patterns from n8n-error-handling-pattern
+# 2. Then import legal ops workflows from workflows/
+# 3. Configure credential placeholders
+# 4. Test with Greenfield & Associates sample payloads from payloads/
+```
+
+## Related Projects
+
+- [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern) — Error handling sub-workflows imported by these templates
+- [n8n-ai-agent-delegator](https://github.com/lorenzespinosa/n8n-ai-agent-delegator) — Multi-agent AI system that can integrate with these legal ops workflows
