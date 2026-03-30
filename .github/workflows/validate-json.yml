@@ -1,0 +1,39 @@
+name: Validate Workflow JSON
+
+on:
+  push:
+    paths:
+      - '**.json'
+  pull_request:
+    paths:
+      - '**.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          find . -name "*.json" -not -path "./.git/*" | while read file; do
+            python3 -m json.tool "$file" > /dev/null || { echo "Invalid JSON: $file"; exit 1; }
+          done
+      - name: Check for credential leaks
+        run: |
+          if grep -rn --include="*.json" \
+            -e '"apiKey"' \
+            -e '"Authorization"' \
+            -e '"Bearer ' \
+            -e '"token"' \
+            -e 'meta\.instanceId' \
+            .; then
+            echo "ERROR: Possible credential or instance metadata found in JSON files."
+            exit 1
+          fi
+      - name: Check active flag
+        run: |
+          if grep -rn --include="*.json" '"active": true' .; then
+            echo "ERROR: Workflow JSON has active: true. Templates must have active: false."
+            exit 1
+          fi
