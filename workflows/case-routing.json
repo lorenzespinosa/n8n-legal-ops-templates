@@ -342,9 +342,7 @@
     "callerPolicy": "workflowsFromSameOwner"
   },
   "versionId": "1",
-  "meta": {
-    "instanceId": "greenfield-legal-ops-demo"
-  },
+  "meta": {},
   "tags": [
     { "name": "legal-ops" },
     { "name": "case-routing" },

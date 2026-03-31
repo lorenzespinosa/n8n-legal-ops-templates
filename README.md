@@ -48,7 +48,10 @@ flowchart LR
 
 | File | Template | Description |
 |------|----------|-------------|
-| *(coming in v0.2.0)* | — | — |
+| `client-intake-pipeline.json` | Client Intake | Webhook → validate → AI classify → human review → CRM create |
+| `missed-call-recovery.json` | Missed Call Recovery | OpenPhone webhook → TCPA check → human review → SMS follow-up |
+| `billing-sync.json` | Billing Sync | Schedule → fetch unbilled → format → conflict check → billing create |
+| `case-routing.json` | Case Routing | Webhook → AI classify + urgency → human review → attorney assign |
 
 All sample payloads use fictional "Greenfield & Associates" — a made-up personal injury firm. Phone numbers use 555-format, case IDs use `matter_99999` pattern.
 
