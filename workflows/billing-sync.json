@@ -16,7 +16,10 @@
       "name": "Schedule — Daily 6AM Weekdays",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -27,8 +30,14 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "filter", "value": "hasUnbilledTime:true" },
-            { "name": "limit", "value": "100" }
+            {
+              "name": "filter",
+              "value": "hasUnbilledTime:true"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
           ]
         },
         "options": {
@@ -39,7 +48,14 @@
       "name": "Fetch Unbilled Items — Filevine",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -49,18 +65,28 @@
       "name": "Format Billing Records",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 300]
+      "position": [
+        660,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "conflict-check",
               "leftValue": "={{ $json.has_conflicts }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -70,7 +96,10 @@
       "name": "IF Conflicts Detected",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [880, 300]
+      "position": [
+        880,
+        300
+      ]
     },
     {
       "parameters": {
@@ -87,7 +116,14 @@
       "name": "Queue Conflicts — Manual Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 180]
+      "position": [
+        1100,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -102,7 +138,14 @@
       "name": "Slack Alert — Conflicts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 180]
+      "position": [
+        1320,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -115,14 +158,26 @@
         "jsonBody": "={{ JSON.stringify({ data: $json.valid_records.map(r => ({ type: 'TimeEntry', matter: { id: r.matter_id }, quantity: r.hours, rate: r.rate, total: r.total, date: r.last_activity, description: r.description, user: { name: r.attorney } })) }) }}",
         "options": {
           "timeout": 30000,
-          "batching": { "batch": { "batchSize": 10, "batchInterval": 1000 } }
+          "batching": {
+            "batch": {
+              "batchSize": 10,
+              "batchInterval": 1000
+            }
+          }
         }
       },
       "id": "c3d4e5f6-3333-4ccc-dddd-000000000007",
       "name": "Create Billing Entries — Clio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 420]
+      "position": [
+        1100,
+        420
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -139,7 +194,14 @@
       "name": "Audit Log — Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 420]
+      "position": [
+        1320,
+        420
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -149,7 +211,10 @@
       "name": "Sticky Note — Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [180, 60]
+      "position": [
+        180,
+        60
+      ]
     },
     {
       "parameters": {
@@ -159,7 +224,10 @@
       "name": "Sticky Note — Conflicts",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1060, 0]
+      "position": [
+        1060,
+        0
+      ]
     },
     {
       "parameters": {
@@ -169,39 +237,89 @@
       "name": "Sticky Note — Transformation",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [620, 460]
+      "position": [
+        620,
+        460
+      ]
     }
   ],
   "connections": {
     "Schedule — Daily 6AM Weekdays": {
       "main": [
-        [{ "node": "Fetch Unbilled Items — Filevine", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Unbilled Items — Filevine",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Unbilled Items — Filevine": {
       "main": [
-        [{ "node": "Format Billing Records", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Billing Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Format Billing Records": {
       "main": [
-        [{ "node": "IF Conflicts Detected", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Conflicts Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Conflicts Detected": {
       "main": [
-        [{ "node": "Queue Conflicts — Manual Review", "type": "main", "index": 0 }, { "node": "Create Billing Entries — Clio", "type": "main", "index": 0 }],
-        [{ "node": "Create Billing Entries — Clio", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Queue Conflicts — Manual Review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Billing Entries — Clio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Billing Entries — Clio",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Queue Conflicts — Manual Review": {
       "main": [
-        [{ "node": "Slack Alert — Conflicts", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Alert — Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Create Billing Entries — Clio": {
       "main": [
-        [{ "node": "Audit Log — Airtable", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Audit Log — Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -215,8 +333,14 @@
   "versionId": "1",
   "meta": {},
   "tags": [
-    { "name": "legal-ops" },
-    { "name": "billing" },
-    { "name": "greenfield-associates" }
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "billing"
+    },
+    {
+      "name": "greenfield-associates"
+    }
   ]
 }

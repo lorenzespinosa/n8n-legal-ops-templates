@@ -12,7 +12,10 @@
       "name": "Webhook — OpenPhone Missed Call",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 300],
+      "position": [
+        220,
+        300
+      ],
       "webhookId": "missed-call-greenfield"
     },
     {
@@ -23,18 +26,28 @@
       "name": "Extract Caller Info",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "skip-check",
               "leftValue": "={{ $json.skip }}",
               "rightValue": false,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -44,7 +57,10 @@
       "name": "IF Missed Inbound",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [660, 300]
+      "position": [
+        660,
+        300
+      ]
     },
     {
       "parameters": {
@@ -61,7 +77,14 @@
       "name": "AI Intent Classification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 200]
+      "position": [
+        880,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -71,18 +94,28 @@
       "name": "Parse AI Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1100,
+        200
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "new-client-check",
               "leftValue": "={{ $json.is_potential_client }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -92,7 +125,10 @@
       "name": "IF New Potential Client",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1320, 200]
+      "position": [
+        1320,
+        200
+      ]
     },
     {
       "parameters": {
@@ -109,7 +145,14 @@
       "name": "Human Review Gate — SMS Approval",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 100]
+      "position": [
+        1540,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -128,7 +171,14 @@
       "name": "Send SMS Follow-up — OpenPhone",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1760, 100]
+      "position": [
+        1760,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -145,7 +195,14 @@
       "name": "Log to Staging — Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1980, 100]
+      "position": [
+        1980,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -162,7 +219,14 @@
       "name": "Log Non-Client Call",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 360]
+      "position": [
+        1540,
+        360
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -172,7 +236,10 @@
       "name": "Sticky Note — Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [180, 40]
+      "position": [
+        180,
+        40
+      ]
     },
     {
       "parameters": {
@@ -182,7 +249,10 @@
       "name": "Sticky Note — Human Review",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1500, -80]
+      "position": [
+        1500,
+        -80
+      ]
     },
     {
       "parameters": {
@@ -192,50 +262,107 @@
       "name": "Sticky Note — Edge Cases",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [880, 440]
+      "position": [
+        880,
+        440
+      ]
     }
   ],
   "connections": {
     "Webhook — OpenPhone Missed Call": {
       "main": [
-        [{ "node": "Extract Caller Info", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Extract Caller Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Caller Info": {
       "main": [
-        [{ "node": "IF Missed Inbound", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Missed Inbound",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Missed Inbound": {
       "main": [
-        [{ "node": "AI Intent Classification", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "AI Intent Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
     "AI Intent Classification": {
       "main": [
-        [{ "node": "Parse AI Response", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Parse AI Response": {
       "main": [
-        [{ "node": "IF New Potential Client", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF New Potential Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF New Potential Client": {
       "main": [
-        [{ "node": "Human Review Gate — SMS Approval", "type": "main", "index": 0 }],
-        [{ "node": "Log Non-Client Call", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Human Review Gate — SMS Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Non-Client Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Human Review Gate — SMS Approval": {
       "main": [
-        [{ "node": "Send SMS Follow-up — OpenPhone", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send SMS Follow-up — OpenPhone",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send SMS Follow-up — OpenPhone": {
       "main": [
-        [{ "node": "Log to Staging — Airtable", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Log to Staging — Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -248,8 +375,14 @@
   "versionId": "1",
   "meta": {},
   "tags": [
-    { "name": "legal-ops" },
-    { "name": "missed-call" },
-    { "name": "greenfield-associates" }
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "missed-call"
+    },
+    {
+      "name": "greenfield-associates"
+    }
   ]
 }

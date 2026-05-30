@@ -12,7 +12,10 @@
       "name": "Webhook — Intake Form",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 300],
+      "position": [
+        220,
+        300
+      ],
       "webhookId": "intake-webhook-greenfield"
     },
     {
@@ -23,18 +26,28 @@
       "name": "Validate Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "valid-check",
               "leftValue": "={{ $json.valid }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -44,19 +57,27 @@
       "name": "IF Valid",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [660, 300]
+      "position": [
+        660,
+        300
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
-        "options": { "responseCode": 400 }
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000004",
       "name": "Respond — Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [880, 480]
+      "position": [
+        880,
+        480
+      ]
     },
     {
       "parameters": {
@@ -79,18 +100,32 @@
       "name": "Check Duplicates — Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 200]
+      "position": [
+        880,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "dup-check",
               "leftValue": "={{ $json.records?.length > 0 }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -100,7 +135,10 @@
       "name": "IF Duplicate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -111,7 +149,10 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "fields", "value": "={{ JSON.stringify({ LastContact: new Date().toISOString(), Notes: 'Returning lead — submitted new intake form' }) }}" }
+            {
+              "name": "fields",
+              "value": "={{ JSON.stringify({ LastContact: new Date().toISOString(), Notes: 'Returning lead — submitted new intake form' }) }}"
+            }
           ]
         },
         "options": {}
@@ -120,7 +161,14 @@
       "name": "Update Existing Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 340]
+      "position": [
+        1340,
+        340
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -137,7 +185,14 @@
       "name": "AI Classify Case Type",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 100]
+      "position": [
+        1340,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -147,7 +202,10 @@
       "name": "Merge AI Classification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 100]
+      "position": [
+        1560,
+        100
+      ]
     },
     {
       "parameters": {
@@ -164,18 +222,32 @@
       "name": "Human Review Gate — Queue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 100]
+      "position": [
+        1780,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "urgency-check",
               "leftValue": "={{ $json.ai_classification?.urgency }}",
               "rightValue": "urgent",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -185,7 +257,10 @@
       "name": "IF Urgent",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2000, 100]
+      "position": [
+        2000,
+        100
+      ]
     },
     {
       "parameters": {
@@ -200,7 +275,14 @@
       "name": "Slack Alert — Urgent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 0]
+      "position": [
+        2220,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -217,19 +299,31 @@
       "name": "CRM Create — Lawmatics",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 200]
+      "position": [
+        2220,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'accepted', message: 'Intake received — pending human review', review_id: $json.id || 'queued' }) }}",
-        "options": { "responseCode": 202 }
+        "options": {
+          "responseCode": 202
+        }
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000014",
       "name": "Respond — Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 100]
+      "position": [
+        2440,
+        100
+      ]
     },
     {
       "parameters": {
@@ -239,7 +333,10 @@
       "name": "Sticky Note — Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [180, 40]
+      "position": [
+        180,
+        40
+      ]
     },
     {
       "parameters": {
@@ -249,7 +346,10 @@
       "name": "Sticky Note — Human Review",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1740, -100]
+      "position": [
+        1740,
+        -100
+      ]
     },
     {
       "parameters": {
@@ -259,66 +359,158 @@
       "name": "Sticky Note — Validation",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [400, 460]
+      "position": [
+        400,
+        460
+      ]
     }
   ],
   "connections": {
     "Webhook — Intake Form": {
       "main": [
-        [{ "node": "Validate Fields", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Validate Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Validate Fields": {
       "main": [
-        [{ "node": "IF Valid", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Valid": {
       "main": [
-        [{ "node": "Check Duplicates — Airtable", "type": "main", "index": 0 }],
-        [{ "node": "Respond — Validation Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Check Duplicates — Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check Duplicates — Airtable": {
       "main": [
-        [{ "node": "IF Duplicate", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Duplicate": {
       "main": [
-        [{ "node": "Update Existing Record", "type": "main", "index": 0 }],
-        [{ "node": "AI Classify Case Type", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Update Existing Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Classify Case Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "AI Classify Case Type": {
       "main": [
-        [{ "node": "Merge AI Classification", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Merge AI Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Merge AI Classification": {
       "main": [
-        [{ "node": "Human Review Gate — Queue", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Human Review Gate — Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Human Review Gate — Queue": {
       "main": [
-        [{ "node": "IF Urgent", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Urgent",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Urgent": {
       "main": [
-        [{ "node": "Slack Alert — Urgent", "type": "main", "index": 0 }, { "node": "CRM Create — Lawmatics", "type": "main", "index": 0 }],
-        [{ "node": "CRM Create — Lawmatics", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Alert — Urgent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CRM Create — Lawmatics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CRM Create — Lawmatics",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Slack Alert — Urgent": {
       "main": [
-        [{ "node": "Respond — Success", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond — Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "CRM Create — Lawmatics": {
       "main": [
-        [{ "node": "Respond — Success", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond — Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -331,8 +523,14 @@
   "versionId": "1",
   "meta": {},
   "tags": [
-    { "name": "legal-ops" },
-    { "name": "intake" },
-    { "name": "greenfield-associates" }
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "intake"
+    },
+    {
+      "name": "greenfield-associates"
+    }
   ]
 }

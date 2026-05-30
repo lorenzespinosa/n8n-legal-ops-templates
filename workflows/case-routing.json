@@ -12,7 +12,10 @@
       "name": "Webhook — New Case",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 400],
+      "position": [
+        220,
+        400
+      ],
       "webhookId": "case-routing-greenfield"
     },
     {
@@ -23,18 +26,28 @@
       "name": "Extract Case Details",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 400]
+      "position": [
+        440,
+        400
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "valid-check",
               "leftValue": "={{ $json.valid }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -44,19 +57,27 @@
       "name": "IF Valid Case",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [660, 400]
+      "position": [
+        660,
+        400
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
-        "options": { "responseCode": 400 }
+        "options": {
+          "responseCode": 400
+        }
       },
       "id": "d4e5f6a7-4444-4ddd-eeee-000000000004",
       "name": "Respond — Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [880, 580]
+      "position": [
+        880,
+        580
+      ]
     },
     {
       "parameters": {
@@ -73,7 +94,14 @@
       "name": "AI Classify + Urgency Score",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 300]
+      "position": [
+        880,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -83,7 +111,10 @@
       "name": "Parse Classification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -100,16 +131,35 @@
       "name": "Human Review Gate — Assignment Queue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 300]
+      "position": [
+        1320,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
         "rules": {
           "values": [
-            { "outputIndex": 0, "value": "personal_injury" },
-            { "outputIndex": 1, "value": "dui_defense" },
-            { "outputIndex": 2, "value": "criminal_defense" },
-            { "outputIndex": 3, "value": "other" }
+            {
+              "outputIndex": 0,
+              "value": "personal_injury"
+            },
+            {
+              "outputIndex": 1,
+              "value": "dui_defense"
+            },
+            {
+              "outputIndex": 2,
+              "value": "criminal_defense"
+            },
+            {
+              "outputIndex": 3,
+              "value": "other"
+            }
           ]
         },
         "dataType": "string",
@@ -119,7 +169,10 @@
       "name": "Switch — Case Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [1540, 300]
+      "position": [
+        1540,
+        300
+      ]
     },
     {
       "parameters": {
@@ -136,7 +189,14 @@
       "name": "Assign — PI (J. Greenfield)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 100]
+      "position": [
+        1780,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -153,7 +213,14 @@
       "name": "Assign — DUI (S. Park)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 280]
+      "position": [
+        1780,
+        280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -170,7 +237,14 @@
       "name": "Assign — Criminal (M. Torres)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 460]
+      "position": [
+        1780,
+        460
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -187,7 +261,14 @@
       "name": "Assign — Other (A. Chen)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 640]
+      "position": [
+        1780,
+        640
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -202,7 +283,14 @@
       "name": "Slack Notification — Assignment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2020, 360]
+      "position": [
+        2020,
+        360
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
@@ -219,19 +307,31 @@
       "name": "Audit Log — Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2240, 360]
+      "position": [
+        2240,
+        360
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'routed', case_id: $json.case_id, case_type: $json.ai_classification.case_type, assigned_to: $json.ai_classification.recommended_attorney, human_review: true }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "d4e5f6a7-4444-4ddd-eeee-000000000015",
       "name": "Respond — Routed",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2460, 360]
+      "position": [
+        2460,
+        360
+      ]
     },
     {
       "parameters": {
@@ -241,7 +341,10 @@
       "name": "Sticky Note — Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [180, 60]
+      "position": [
+        180,
+        60
+      ]
     },
     {
       "parameters": {
@@ -251,7 +354,10 @@
       "name": "Sticky Note — Human Review",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1280, 80]
+      "position": [
+        1280,
+        80
+      ]
     },
     {
       "parameters": {
@@ -261,77 +367,182 @@
       "name": "Sticky Note — Routing",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1740, -60]
+      "position": [
+        1740,
+        -60
+      ]
     }
   ],
   "connections": {
     "Webhook — New Case": {
       "main": [
-        [{ "node": "Extract Case Details", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Extract Case Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Case Details": {
       "main": [
-        [{ "node": "IF Valid Case", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF Valid Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF Valid Case": {
       "main": [
-        [{ "node": "AI Classify + Urgency Score", "type": "main", "index": 0 }],
-        [{ "node": "Respond — Validation Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "AI Classify + Urgency Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "AI Classify + Urgency Score": {
       "main": [
-        [{ "node": "Parse Classification", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Parse Classification": {
       "main": [
-        [{ "node": "Human Review Gate — Assignment Queue", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Human Review Gate — Assignment Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Human Review Gate — Assignment Queue": {
       "main": [
-        [{ "node": "Switch — Case Type", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Switch — Case Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Switch — Case Type": {
       "main": [
-        [{ "node": "Assign — PI (J. Greenfield)", "type": "main", "index": 0 }],
-        [{ "node": "Assign — DUI (S. Park)", "type": "main", "index": 0 }],
-        [{ "node": "Assign — Criminal (M. Torres)", "type": "main", "index": 0 }],
-        [{ "node": "Assign — Other (A. Chen)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Assign — PI (J. Greenfield)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assign — DUI (S. Park)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assign — Criminal (M. Torres)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assign — Other (A. Chen)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Assign — PI (J. Greenfield)": {
       "main": [
-        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Notification — Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Assign — DUI (S. Park)": {
       "main": [
-        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Notification — Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Assign — Criminal (M. Torres)": {
       "main": [
-        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Notification — Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Assign — Other (A. Chen)": {
       "main": [
-        [{ "node": "Slack Notification — Assignment", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Slack Notification — Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Slack Notification — Assignment": {
       "main": [
-        [{ "node": "Audit Log — Airtable", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Audit Log — Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Audit Log — Airtable": {
       "main": [
-        [{ "node": "Respond — Routed", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond — Routed",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -344,8 +555,14 @@
   "versionId": "1",
   "meta": {},
   "tags": [
-    { "name": "legal-ops" },
-    { "name": "case-routing" },
-    { "name": "greenfield-associates" }
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "case-routing"
+    },
+    {
+      "name": "greenfield-associates"
+    }
   ]
 }
