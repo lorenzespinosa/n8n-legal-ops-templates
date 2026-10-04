@@ -22,12 +22,13 @@ Against the real pinned n8n runtime (execution, not import-only):
   allowlist) accepts the fictional Greenfield intake fixture with **HTTP 202**, and
   its downstream graph then performs a **Lawmatics mock CRM write with zero approval
   actions** — the latent ungated-write defect this baseline exists to measure.
-- The **unchanged tracked template itself** is a separate, previously observed
-  negative control: its flat-reading validation answers **HTTP 400** on the same
-  runtime. The 400 and the adapted 202 are distinct diagnostics, not two
-  descriptions of the same run: the CRM write is attributed to the narrowly
-  adapted copy, not to the shipped source bytes. See `docs/case-study.md` for
-  the buyer-facing explanation and reproduction limits.
+- The historical template's flat-reading validation was previously observed
+  answering **HTTP 400** for the n8n Webhook body envelope on the same pinned
+  runtime. The raw negative-control capture is **not published** in this
+  release; the baseline record labels the 400 a *prior diagnostic*, not a
+  measurement of this baseline run. The adapted copy's 202 and its ungated
+  mock CRM write are the counted baseline measurements. See
+  `docs/case-study.md` for the distinct claims and reproduction limits.
 - **External egress is denied**: from inside the runtime's internal Docker network
   the local mock is reachable while a bounded TCP connect to an RFC 5737 TEST-NET-1
   address cannot be established. No live service is ever contacted.
@@ -403,7 +404,15 @@ Phase 3 packages the proof. Two commands, run from the **repository root**:
 
   ```bash
   node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-log.json
+  node runtime/scripts/verify-release-attachments.mjs
   ```
+
+  The second command checks the separately archived prior full record, the
+  nine-file source-run manifest, and the retrospective SHA-256 attachment
+  index against this repository's Git bytes. It independently compares the
+  counted matrices offline; it does not rerun n8n or turn the earlier 400
+  diagnostic into a published measurement. The accepted record itself does
+  not hash the archival attachments; the committed index binds their bytes.
 
   Its terminal success line is `FINAL-EVIDENCE PASS: 5/5 cases captured…`.
 
