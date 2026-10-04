@@ -1,0 +1,436 @@
+{
+  "name": "Approved Delivery — Greenfield & Associates (Phase 2 Demo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gated-delivery-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000001",
+      "name": "Webhook — Approved Delivery",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "webhookId": "gated-delivery-webhook-greenfield"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mock-api:9090/demo/v1/delivery/state",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ review_id: ($json.body ?? $json).review_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000002",
+      "name": "Load Delivery State — Demo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fail-closed classifier for the loaded delivery state (T-02-06).\n// Every input that is not an explicitly recognized, well-formed state\n// classifies as REFUSED — a malformed or garbage response can never fall\n// through toward the CRM node. The explicit assertion node downstream is\n// the second, load-bearing gate.\nconst s = $input.first().json;\nconst malformed = (why) => [{ json: { classification: 'refused', reason: 'malformed state-load response: ' + why, review: null, delivery: null, payload: null } }];\nif (s === null || typeof s !== 'object' || Array.isArray(s)) {\n  return malformed('not a state object');\n}\nif (!('review' in s) || !('delivery' in s) || !('payload' in s)) {\n  return malformed('missing review/delivery/payload contract');\n}\nconst review = s.review;\nconst delivery = s.delivery;\nconst payload = s.payload;\nif (review === null) {\n  return [{ json: { classification: 'refused', reason: 'unknown review — no such review exists', review: null, delivery: null, payload: null } }];\n}\nif (typeof review !== 'object' || typeof review.review_id !== 'string' || typeof review.state !== 'string') {\n  return malformed('review record shape invalid');\n}\nif (delivery !== null && (typeof delivery !== 'object' || typeof delivery.state !== 'string')) {\n  return malformed('delivery record shape invalid');\n}\nif (delivery && delivery.state === 'committed') {\n  return [{ json: { classification: 'committed', reason: 'delivery already committed — the existing effect is returned before the assertion', review, delivery, payload: null } }];\n}\nif (\n  review.state === 'approved' &&\n  review.approval &&\n  review.approval.recorded === true &&\n  review.approval.action === 'approve' &&\n  review.approval.by === 'reviewer' &&\n  delivery &&\n  (delivery.state === 'pending' || delivery.state === 'retryable') &&\n  payload !== null &&\n  typeof payload === 'object'\n) {\n  return [{ json: { classification: 'candidate', reason: 'approved by a recorded reviewer action — proceeding to the explicit assertion', review, delivery, payload } }];\n}\nconst reason = review.state === 'approved'\n  ? 'approved state exists without the separately recorded reviewer approval — conflicting state refused'\n  : 'review state is \"' + review.state + '\" — only an exactly approved review may deliver';\nreturn [{ json: { classification: 'refused', reason, review, delivery, payload: null } }];"
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000003",
+      "name": "Classify Delivery State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "committed-check",
+              "leftValue": "={{ $json.classification }}",
+              "rightValue": "committed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000004",
+      "name": "IF Already Committed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'already_delivered', review_id: $json.review?.review_id ?? null, effect_id: $json.delivery?.effect_id ?? null, crm_idempotency_key: $json.delivery?.crm_idempotency_key ?? null, message: 'the committed CRM effect is returned unchanged — no new attempt is made' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000005",
+      "name": "Respond — Existing Delivery",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "deliverable-check",
+              "leftValue": "={{ $json.classification }}",
+              "rightValue": "candidate",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000006",
+      "name": "IF Deliverable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// LOAD-BEARING APPROVAL ASSERTION — the sole immediate predecessor of the\n// CRM node (T-02-06). Throws unless EVERY recorded-state invariant holds:\n// exact approved state, separately recorded reviewer approval, pending or\n// retryable delivery, stable CRM idempotency key bound to this review,\n// canonical payload hash recomputed IN-GRAPH, and required contact fields.\n// The mock is NOT the approval gate; this node is.\nconst s = $input.first().json;\nif (!s || typeof s !== 'object') throw new Error('assertion input malformed — CRM delivery refused');\nconst review = s.review;\nconst delivery = s.delivery;\nconst payload = s.payload;\nif (!review || !delivery || !payload) throw new Error('assertion input incomplete — CRM delivery refused');\n\nif (review.state !== 'approved') {\n  throw new Error('review ' + review.review_id + ' is \"' + review.state + '\", not exactly \"approved\" — CRM delivery refused');\n}\nif (!review.approval || review.approval.recorded !== true || review.approval.action !== 'approve' || review.approval.by !== 'reviewer') {\n  throw new Error('approval is not a separately recorded reviewer action — CRM delivery refused');\n}\nif (delivery.state !== 'pending' && delivery.state !== 'retryable') {\n  throw new Error('delivery state \"' + delivery.state + '\" is not pending/retryable — CRM delivery refused');\n}\nconst expectedKey = 'crmkey_' + review.review_id;\nif (delivery.crm_idempotency_key !== expectedKey) {\n  throw new Error('stable CRM idempotency key mismatch — CRM delivery refused');\n}\n\n// Inline SHA-256 (the pinned sandbox forbids require) over the same\n// canonical JSON the demo state computes, so the graph itself proves the\n// payload matches the recorded hash.\nconst sha256hex = (ascii) => {\n  const rightRotate = (value, amount) => (value >>> amount) | (value << (32 - amount));\n  const maxWord = Math.pow(2, 32);\n  let result = '';\n  const words = [];\n  const asciiBitLength = ascii.length * 8;\n  let hash = sha256hex.h = sha256hex.h || [];\n  const k = sha256hex.k = sha256hex.k || [];\n  let primeCounter = k.length;\n  const isComposite = {};\n  for (let candidate = 2; primeCounter < 64; candidate++) {\n    if (!isComposite[candidate]) {\n      for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;\n      hash[primeCounter] = (Math.pow(candidate, 0.5) * maxWord) | 0;\n      k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;\n    }\n  }\n  ascii += '\\x80';\n  while (ascii.length % 64 - 56) ascii += '\\x00';\n  for (let i = 0; i < ascii.length; i++) {\n    const j = ascii.charCodeAt(i);\n    if (j >> 8) return null;\n    words[i >> 2] |= j << (((3 - i) % 4) * 8);\n  }\n  words[words.length] = (asciiBitLength / maxWord) | 0;\n  words[words.length] = asciiBitLength;\n  for (let j = 0; j < words.length;) {\n    const w = words.slice(j, j += 16);\n    const oldHash = hash;\n    hash = hash.slice(0, 8);\n    for (let i = 0; i < 64; i++) {\n      const w15 = w[i - 15];\n      const w2 = w[i - 2];\n      const a = hash[0];\n      const e = hash[4];\n      const temp1 = hash[7]\n        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))\n        + ((e & hash[5]) ^ (~e & hash[6]))\n        + k[i]\n        + (w[i] = i < 16 ? w[i] : (\n          w[i - 16]\n          + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))\n          + w[i - 7]\n          + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))\n        ) | 0);\n      const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))\n        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));\n      hash = [(temp1 + temp2) | 0].concat(hash);\n      hash[4] = (hash[4] + temp1) | 0;\n    }\n    for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;\n  }\n  for (let i = 0; i < 8; i++) {\n    for (let j = 3; j + 1; j--) {\n      const b = (hash[i] >> (j * 8)) & 255;\n      result += (b < 16 ? '0' : '') + b.toString(16);\n    }\n  }\n  return result;\n};\nconst canonical = (v) => Array.isArray(v)\n  ? '[' + v.map(canonical).join(',') + ']'\n  : (v !== null && typeof v === 'object')\n    ? '{' + Object.keys(v).sort().map((key) => JSON.stringify(key) + ':' + canonical(v[key])).join(',') + '}'\n    : JSON.stringify(v ?? null);\nconst canonicalString = canonical({\n  contact: payload.contact ?? null,\n  case_info: payload.case_info ?? null,\n  source: payload.source ?? null,\n  referral_source: payload.referral_source ?? null,\n  firm: payload.firm ?? null,\n  timestamp: payload.timestamp ?? null,\n});\nconst recomputedHash = sha256hex(unescape(encodeURIComponent(canonicalString)));\nif (recomputedHash === null || recomputedHash !== delivery.payload_hash) {\n  throw new Error('payload hash mismatch — the stored record does not match this payload; CRM delivery refused');\n}\n\nif (!payload.contact || typeof payload.contact !== 'object') throw new Error('contact payload missing — CRM delivery refused');\nif (!payload.contact.first_name || !payload.contact.last_name) throw new Error('contact name fields missing — CRM delivery refused');\nif (!payload.contact.email && !payload.contact.phone) throw new Error('no contact email or phone — CRM delivery refused');\n\n// Only CRM-bound fields cross this boundary.\nreturn [{ json: {\n  idempotency_key: expectedKey,\n  ...(payload.contact.email ? { email: payload.contact.email } : {}),\n  ...(payload.contact.phone ? { phone: payload.contact.phone } : {}),\n  review_id: review.review_id\n} }];"
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000007",
+      "name": "Assert Approved — Delivery State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mock-api:9090/demo/v1/crm/contacts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ idempotency_key: $json.idempotency_key, email: $json.email, phone: $json.phone, review_id: $json.review_id }) }}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000008",
+      "name": "CRM Create — Demo Boundary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        360
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "stopWorkflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Interpret the counted CRM boundary's response. Fail closed on shape:\n// ONLY an explicit committed/exists effect is a delivery. The deterministic\n// pre-commit fault (a TRANSPORT SUCCESS carrying an application failure:\n// committed:false, retryable:true, fault_injected:true) routes to a truthful\n// retryable outcome — never a 'delivered' claim. Anything unrecognized is a\n// non-delivery.\nconst body = $input.first().json;\nconst isObject = body !== null && typeof body === 'object' && !Array.isArray(body);\nif (isObject && (body.status === 'committed' || body.status === 'exists') && body.effect && typeof body.effect.effect_id === 'string') {\n  return [{ json: { outcome: 'delivered', review_id: body.review_id ?? null, effect_id: body.effect.effect_id, crm_idempotency_key: body.effect.key ?? null } }];\n}\nif (isObject && body.fault_injected === true && body.committed === false && body.retryable === true) {\n  return [{ json: { outcome: 'crm_failed_retryable', review_id: body.review_id ?? null, committed: false, retryable: true } }];\n}\nreturn [{ json: { outcome: 'crm_failed_retryable', review_id: isObject && typeof body.review_id === 'string' ? body.review_id : null, committed: false, retryable: true, unrecognized: true } }];"
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000013",
+      "name": "Interpret CRM Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "crm-delivered-check",
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "delivered",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000014",
+      "name": "IF CRM Delivered",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'delivered', review_id: $json.review_id ?? null, effect_id: $json.effect_id ?? null, crm_idempotency_key: $json.crm_idempotency_key ?? null }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000009",
+      "name": "Respond — Delivered",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'crm_failed_retryable', review_id: $json.review_id ?? null, committed: false, retryable: true, message: 'CRM attempt failed before commit — the delivery stays retryable; one deliberate retry with the same stable CRM key commits exactly one effect' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000015",
+      "name": "Respond — Delivery Retryable",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'refused', reason: $json.reason }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000010",
+      "name": "Respond — Delivery Refused",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Approved Delivery (Phase 2 Demo)\n\n**Pattern:** Webhook → Load state → Classify → (committed → existing) | (candidate → Assert → CRM) | (else → refused)\n\n- CRM delivery is reachable ONLY through the Assert Approved Code node — its sole immediate predecessor. That node throws unless the review is exactly approved by a separately recorded reviewer action, the delivery is pending/retryable, the stable CRM idempotency key matches, and the canonical payload hash recomputed in-graph matches the recorded hash.\n- A committed delivery returns the existing sanitized effect on a branch with NO edge to the assertion or CRM — replay changes nothing.\n- Pending, rejected, unknown, conflicting, malformed, and garbage states terminate at a truthful refusal before the CRM node.\n- The single CRM HTTP node is the local counted boundary at http://mock-api:9090 with fictional Greenfield & Associates data only; no other CRM route exists in any gated graph."
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000011",
+      "name": "Sticky Note — Delivery Boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## State Contract\n\n- Load: POST /demo/v1/delivery/state with review_id — returns the sanitized review (state + recorded approval), the delivery record, and the raw fictional payload ONLY for approved+pending reviews\n- Assert: exact approved state, reviewer-recorded approval, pending/retryable delivery, crmkey_<review_id>, in-graph SHA-256 of the canonical payload, required contact fields\n- Refusals are truthful 409 responses; a Code-node throw stops the workflow before CRM on any path that somehow reaches the assertion non-approved\n- CRM outcome: only an explicit committed/exists effect answers delivered. A pre-commit application failure (HTTP 200, committed:false, retryable:true) answers crm_failed_retryable — the attempt is journaled, no effect exists, and exactly one deliberate same-key retry commits the single effect. Response-loss-after-commit and process-restart semantics are NOT implemented and NOT claimed."
+      },
+      "id": "d4e5f6a7-4444-4eee-eeee-000000000012",
+      "name": "Sticky Note — State Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        660
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook — Approved Delivery": {
+      "main": [
+        [
+          {
+            "node": "Load Delivery State — Demo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Delivery State — Demo": {
+      "main": [
+        [
+          {
+            "node": "Classify Delivery State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Delivery State": {
+      "main": [
+        [
+          {
+            "node": "IF Already Committed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Already Committed": {
+      "main": [
+        [
+          {
+            "node": "Respond — Existing Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Deliverable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Deliverable": {
+      "main": [
+        [
+          {
+            "node": "Assert Approved — Delivery State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Delivery Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assert Approved — Delivery State": {
+      "main": [
+        [
+          {
+            "node": "CRM Create — Demo Boundary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Create — Demo Boundary": {
+      "main": [
+        [
+          {
+            "node": "Interpret CRM Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpret CRM Result": {
+      "main": [
+        [
+          {
+            "node": "IF CRM Delivered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF CRM Delivered": {
+      "main": [
+        [
+          {
+            "node": "Respond — Delivered",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Delivery Retryable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {},
+  "tags": [
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "approved-delivery"
+    },
+    {
+      "name": "greenfield-associates"
+    }
+  ]
+}

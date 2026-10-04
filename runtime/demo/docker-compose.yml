@@ -1,0 +1,171 @@
+# Pinned local-only runtime topology for the Phase 2 GATED Flagship Intake demo.
+#
+# Deliberately separate from the Phase 1 baseline project (flagship-intake-
+# baseline): unique Compose project name, its own volumes, its own launcher-
+# owned ephemeral .generated directory, and its own demo-state volume so the
+# Phase 1 launcher, evidence, and tests remain untouched.
+#
+# - The n8n image is referenced by digest and never pulled (pull_policy:
+#   never); the digest is the locally cached candidate pinned in Phase 1.
+# - mock-api runs the same cached image with a plain `node` entrypoint so the
+#   standard-library-only demo state service needs no package install
+#   (T-02-SC). Its persisted JSON state lives in the dedicated demo-state
+#   volume (atomic temp-sibling + rename writes performed by the service).
+#   The demo-state volume contains raw fictional intake payloads needed for
+#   delivery and replay; it stores only a hash of the reviewer proof, while
+#   the admin/audit views expose hashed identifiers. The n8n service keeps its
+#   whole state directory in tmpfs (WR-07): no n8n data volume exists.
+# - The single network is `internal: true`: containers on it have no external
+#   egress (T-02-01 egress boundary). Docker ignores port publishing for
+#   containers attached only to an internal network — deliberately accepted:
+#   the audit service runs the acceptance test from INSIDE the network, so
+#   nothing is published and the egress boundary has no inbound exceptions.
+# - runtime/demo/.generated/import is mounted read-only into n8n for CLI
+#   import; the rest of the launcher-owned ephemeral .generated tree (which
+#   includes the current per-case or held-manual one-time reviewer proof file)
+#   is mounted ONLY into the audit service at /ephemeral, never into n8n. Its contents are
+#   ephemeral launcher artifacts and are never committed.
+
+name: flagship-intake-gated-demo
+
+x-pinned-n8n-image: &pinned-n8n-image n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec
+
+services:
+  n8n:
+    image: *pinned-n8n-image
+    pull_policy: never
+    # WR-07: the ENTIRE n8n state directory (/home/node/.n8n — SQLite
+    # database, WAL sidecars, config) is memory-backed (tmpfs). Measured on
+    # the pinned 2.37.10: the raw one-time reviewer proof unavoidably
+    # transits the reviewer webhook request and node data, n8n writes
+    # in-flight execution data UNCONDITIONALLY at execution start
+    # (ActiveExecutions.add -> ExecutionPersistence.create), and webhook
+    # executions are never finalized, so the EXECUTIONS_DATA_SAVE_* knobs
+    # alone cannot keep the token off n8n storage. Memory-backing keeps n8n
+    # execution data off disk: this state dies with the container instead of
+    # persisting in a volume. The separate 0600 host proof files are disk-backed
+    # until normal launcher teardown removes its generated tree.
+    volumes:
+      - type: tmpfs
+        target: /home/node/.n8n
+        tmpfs:
+          size: 256m
+          # NOTE: the engine interprets this integer as an OCTAL mode string.
+          # 511 decimal = 0o777 — world-writable so the image's unprivileged
+          # `node` user can write its state (1777 would be parsed as 3361₈).
+          mode: 511
+      - ./.generated/import:/import:ro
+    # The service entrypoint imports the gated workflows (root ids already
+    # injected into the mounted import files by the launcher) and activates
+    # them BEFORE starting the server, so the memory-backed database knows
+    # the active graphs when webhook registration happens. The launcher then
+    # asserts the exact version pin and the imported ids against the LIVE
+    # server's own database (fail-closed, as with the previous one-off setup
+    # container).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        n8n import:workflow --input=/import/intake-stage.import.json
+        n8n import:workflow --input=/import/reviewer-decision.import.json
+        n8n import:workflow --input=/import/approved-delivery.import.json
+        n8n update:workflow --id="$$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("/import/intake-stage.import.json","utf8")).id)')" --active=true
+        n8n update:workflow --id="$$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("/import/reviewer-decision.import.json","utf8")).id)')" --active=true
+        n8n update:workflow --id="$$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("/import/approved-delivery.import.json","utf8")).id)')" --active=true
+        exec n8n start
+    environment:
+      # Local-only placeholder key so the import steps and the server share
+      # one encryption context. Not a secret.
+      N8N_ENCRYPTION_KEY: greenfield-local-gated-demo-key
+      N8N_PORT: "5678"
+      WEBHOOK_URL: http://127.0.0.1:5678/
+      # WR-07: execution-data saving is disabled instance-wide as defense in
+      # depth. Measured caveat on the pinned 2.37.10: these knobs govern
+      # finalization-time retention, while the in-flight write at execution
+      # start is unconditional — the tmpfs state directory above is what
+      # actually keeps the one-time proof off disk.
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: "none"
+      EXECUTIONS_DATA_SAVE_ON_ERROR: "none"
+      EXECUTIONS_DATA_SAVE_ON_PROGRESS: "false"
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "false"
+      # Keep the runtime instance itself from reaching for anything external.
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_REPORTING_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+      N8N_HIRING_BANNER_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_SECURE_COOKIE: "false"
+    networks:
+      - runtime-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:5678/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+
+  mock-api:
+    image: *pinned-n8n-image
+    pull_policy: never
+    # The persisted demo-state JSON lives in a named volume whose mount point
+    # Docker creates as root; the image's default `node` user cannot write
+    # there. This container is deliberately isolated (internal-only network,
+    # read-only code mounts, no published ports), so running it as root is
+    # the deterministic way to keep the atomic state writes working.
+    user: "0:0"
+    entrypoint: ["node", "/demo/mocks/server.mjs"]
+    command: ["/demo-state/demo-state.json"]
+    environment:
+      DEMO_MOCK_PORT: "9090"
+    volumes:
+      - ./mocks:/demo/mocks:ro
+      - demo-state:/demo-state
+    networks:
+      - runtime-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:9090/admin/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+      start_period: 3s
+
+  # One-off audit/test execution container. Runs the gated acceptance suite
+  # from inside the internal network against http://n8n:5678 and
+  # http://mock-api:9090. Repository subtrees are mounted read-only at their
+  # repo-relative paths so the tests resolve the tracked workflows and
+  # fixtures unchanged — including the immutable historical source for the
+  # pre/post-run hash assertions. runtime/scripts is mounted for the in-network
+  # reviewer-action helper, and the launcher-owned ephemeral .generated tree is
+  # mounted at /ephemeral so the manual reviewer command and the per-case audit
+  # runs can read the current one-time proof file (rewritten fresh for every
+  # isolated case) without the proof ever appearing on a command line.
+  audit:
+    image: *pinned-n8n-image
+    pull_policy: never
+    entrypoint: ["node"]
+    working_dir: /repo
+    volumes:
+      - ../../workflows:/repo/workflows:ro
+      - ../../payloads:/repo/payloads:ro
+      - ../tests:/repo/runtime/tests:ro
+      - ../scripts:/repo/runtime/scripts:ro
+      - .:/repo/runtime/demo:ro
+      - ./.generated:/ephemeral:ro
+    networks:
+      - runtime-net
+
+networks:
+  runtime-net:
+    internal: true
+
+volumes:
+  demo-state:

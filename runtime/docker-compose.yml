@@ -1,0 +1,93 @@
+# Pinned local-only runtime topology for the Flagship Intake baseline.
+#
+# - The n8n image is referenced by digest and never pulled (pull_policy:
+#   never); the digest is the locally cached candidate from decision D-01.
+# - mock-api runs the same cached image with a plain `node` entrypoint so the
+#   standard-library-only mock needs no package install (T-01-SC).
+# - The single network is `internal: true`: containers on it have no external
+#   egress (T-01-01). Docker ignores port publishing for containers attached
+#   only to an internal network — deliberately accepted: the audit service
+#   runs the acceptance test from INSIDE the network, so nothing is published
+#   and the egress boundary has no inbound exceptions at all.
+# - runtime/.generated is mounted read-only into n8n for CLI import; its
+#   contents are ephemeral launcher artifacts and are never committed.
+
+name: flagship-intake-baseline
+
+x-pinned-n8n-image: &pinned-n8n-image n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec
+
+services:
+  n8n:
+    image: *pinned-n8n-image
+    pull_policy: never
+    environment:
+      # Local-only placeholder key so the import one-off container and the
+      # server container share one encryption context. Not a secret (D-11).
+      N8N_ENCRYPTION_KEY: greenfield-local-baseline-key
+      N8N_PORT: "5678"
+      WEBHOOK_URL: http://127.0.0.1:5678/
+      # Keep the runtime instance itself from reaching for anything external.
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_REPORTING_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+      N8N_HIRING_BANNER_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_SECURE_COOKIE: "false"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./.generated:/import:ro
+    networks:
+      - runtime-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:5678/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+
+  mock-api:
+    image: *pinned-n8n-image
+    pull_policy: never
+    entrypoint: ["node", "/mocks/server.mjs"]
+    command: ["9090"]
+    volumes:
+      - ./mocks:/mocks:ro
+    networks:
+      - runtime-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:9090/admin/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+      start_period: 3s
+
+  # One-off audit/test execution container. Runs the acceptance suite from
+  # inside the internal network against http://n8n:5678 and http://mock-api:9090.
+  # Repository subtrees are mounted read-only at their repo-relative paths so
+  # the tests resolve the tracked workflow and fixtures unchanged.
+  audit:
+    image: *pinned-n8n-image
+    pull_policy: never
+    entrypoint: ["node"]
+    working_dir: /repo
+    volumes:
+      - ../workflows:/repo/workflows:ro
+      - ../payloads:/repo/payloads:ro
+      - ./tests:/repo/runtime/tests:ro
+    networks:
+      - runtime-net
+
+networks:
+  runtime-net:
+    internal: true
+
+volumes:
+  n8n-data:
