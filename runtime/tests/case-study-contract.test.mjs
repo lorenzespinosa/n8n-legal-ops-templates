@@ -269,8 +269,11 @@ const COMMIT_40HEX = /\b[0-9a-f]{40}\b/;
 
 export function excerptDerivation(excerpt) {
   const issues = [];
-  if (!/[Dd]erived[^\n]*final-evidence-log\.json/.test(excerpt)) {
-    issues.push('excerpt must state it is derived from runtime/evidence/final-evidence-log.json');
+  if (!/Counted outcomes and runtime identities[\s\S]{0,180}final-evidence-log\.json/.test(excerpt)) {
+    issues.push('excerpt must attribute counted outcomes to runtime/evidence/final-evidence-log.json');
+  }
+  if (!/release-attachment-index\.json/.test(excerpt) || !/retrospective/i.test(excerpt)) {
+    issues.push('excerpt must attribute archival attachment digests to the separate retrospective release index');
   }
   if (!RUN_ID.test(excerpt)) issues.push('excerpt must name the recorded run id');
   if (!COMMIT_40HEX.test(excerpt)) issues.push('excerpt must name the recorded source-run commit');

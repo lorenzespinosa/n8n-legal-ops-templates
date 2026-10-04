@@ -1,8 +1,9 @@
 # Flagship Intake Demo — Case Study: A Counted Reviewer-Decision Gate
 
-This is a local, sandboxed engineering proof of one pattern: **no CRM write happens
-without an explicit approval action, and that property is measured by counted
-writes on a real pinned runtime — not asserted by prose.** Everything shown here
+This is a local, sandboxed engineering proof of the **new three-graph demo**:
+the tested unauthorized paths made zero mock CRM attempts, while a separate
+recorded, test-simulated approval authorized the counted delivery. Those states
+were measured on a real pinned runtime — not inferred from prose. Everything shown here
 is **local mock evidence with fictional Greenfield & Associates fixture data —
 not a live business outcome**; no production deployment is claimed, and no real
 client or firm data was used anywhere in this work.
@@ -23,13 +24,14 @@ actual graph contradicted the claim:
 
 The historical graph names real external-service hosts, but its identifiers
 and credential bindings are placeholders; it must not be activated with live
-accounts. Under the pinned runtime used throughout this work
-(n8n 2.37.10), the **unchanged tracked template's webhook validation answers
-HTTP 400** — the bundled Webhook node nests the request payload under a body
-key that the template's flat-reading validation does not unwrap. That 400 is a
-recorded diagnostic of the tracked bytes and is stated here without
-embellishment: the tracked file is not runnable as-is, and this case study never
-implies otherwise.
+accounts. Under the pinned runtime used throughout this work (n8n 2.37.10), a **prior
+local negative-control observation** found that the unchanged tracked
+template's webhook validation answered HTTP 400: the Webhook node nests the
+request payload under a body key that its flat-reading validation does not
+unwrap. The raw capture for that earlier 400 is **not published here**. The
+baseline record labels it a prior diagnostic, not a measurement of the new
+baseline run; no independent reproduction of that exact 400 is claimed from
+the published attachment set.
 
 To measure the defect empirically, a clearly labeled **narrowly adapted runtime
 copy** was derived in Phase 01 — identical graph, with exactly six URL mappings
@@ -39,9 +41,10 @@ Only that adapted copy reached **HTTP 202**, and its downstream graph then
 performed **one mock CRM write with zero approval actions** — the latent
 ungated-write defect, now a measured fact instead of a code-review opinion.
 
-The 400 (unchanged tracked bytes) and the 202-with-ungated-write (adapted copy)
-are recorded as distinct diagnostics and are never conflated: the CRM write is
-attributed to the adapted copy alone, never to the shipped template bytes.
+The earlier 400 observation (historical tracked bytes) and the recorded 202
+with ungated mock write (adapted copy) are distinct. Only the adapted-copy 202
+and counted CRM write are measurements in the committed baseline record; the
+write is never attributed to the unmodified graph.
 
 ## What the gated demo proves
 
@@ -119,13 +122,20 @@ verification-only clean-sandbox rerun bound to this release's committed
 baseline, then verify the committed record:
 
 ```bash
-./runtime/run-clean-rerun.sh --phase-base 19ce7afcfa1470512c7675cc5b0661e0714646d2
+./runtime/run-clean-rerun.sh --phase-base 4fe6c13d35c0ad47158178420a4333e2408f1ad5
 node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-log.json
+node runtime/scripts/verify-release-attachments.mjs
 ```
 
 The accepted record was promoted by the standalone evidence driver only after
 its Git-bound verifier and manifest checks. Its counted states were compared
-with a prior verified run before promotion. An ordinary rerun today is
+with a prior verified run before promotion. That earlier full record and the
+nine-file source-run manifest are now retained under `runtime/evidence/`, with
+their byte digests and the accepted record's digest in the retrospective
+`release-attachment-index.json`. The offline attachment verifier checks the
+two matrices, all three record/manifest identities, and nine actual Git blobs;
+it does **not** independently re-execute n8n or prove historical execution
+beyond the captured records. An ordinary rerun today is
 verification-only: it stages a fresh candidate, gates on comparison,
 manifest, scan, regression, and end-state checks, requires the canonical log
 to remain byte-identical, and discards the candidate. These are separate
@@ -134,7 +144,7 @@ study. The observed acceptance and explicit comparison lines were:
 
 ```
 FINAL-EVIDENCE PASS: 5/5 cases captured; record verified and published to runtime/evidence/final-evidence-log.json
-RERUN COMPARISON PASS: per-case counted states identical (final-20261004T122457Z vs final-20261004T122650Z)
+RERUN COMPARISON PASS: per-case counted states identical (final-20261004T143803Z vs final-20261004T143907Z)
 ```
 
 Every step inside these commands is asserted, never slept over or inferred:
@@ -180,17 +190,17 @@ Supporting verdicts from the same record:
 
 **Run identity** (from the record): n8n 2.37.10; image
 `n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec`;
-Docker client 29.7.2; Docker Compose 5.4.0; run id `final-20261004T122650Z`,
+Docker client 29.7.2; Docker Compose 5.4.0; run id `final-20261004T143907Z`,
 execution mode `real-n8n`, status `completed`. The record's rerun section binds
-it to the earlier accepted run `final-20261004T122457Z` with per-case counted
+it to the earlier accepted run `final-20261004T143803Z` with per-case counted
 states identical, from a verified clean sandbox (no owned containers, networks,
 volumes, generated tree, census forensics, or launcher lock — all checked
 before any Docker mutation), over phase base
-`19ce7afcfa1470512c7675cc5b0661e0714646d2` (the full 40-hex frozen phase
+`4fe6c13d35c0ad47158178420a4333e2408f1ad5` (the full 40-hex frozen phase
 boundary, as recorded).
 
 **Recorded source-run commit:** the evidence pipeline bound its nine-file
-SHA-256 manifest to `5100860e7c887058f93607c6ab531ff370fa9997` — the commit the
+SHA-256 manifest to `2e9ed11eb32a38deff2037936b450697d4c5bcb2` — the commit the
 recorded runs executed at. That commit is **not** the later packaging/docs
 commit this case study lives at, and this document does not equate the two.
 The verify command in _Reproduce it_ (run from the repository root) re-checks
@@ -206,11 +216,15 @@ Provenance SHA-256 (from the record): intake graph
 graph `b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474`;
 delivery graph
 `9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41`; historical
-source `4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc`
+source `b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5`
 (byte-identical before and after every run).
 
-A sanitized public excerpt of the same record — counts, hashes, status codes,
-and identity strings only — is `docs/evidence-summary.md`.
+A sanitized public excerpt of the accepted record and the separate attachment
+index — counts, hashes, status codes, and identity strings only — is
+`docs/evidence-summary.md`. The accepted record itself stores the comparison
+assertion and earlier run ID, but does not hash the separately archived prior
+record or source-run manifest; their retrospective digests are in the committed
+release attachment index and are checked by the offline verifier above.
 
 ## Architecture: three gated graphs
 

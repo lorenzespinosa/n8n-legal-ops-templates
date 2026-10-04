@@ -2,17 +2,21 @@
 
 ## Derivation
 
-This excerpt is derived entirely from the committed machine-verified record `runtime/evidence/final-evidence-log.json`
-(kind `flagship-intake-final-evidence`, schema version 1), produced by
-`./runtime/run-final-evidence.sh` and independently re-verifiable with:
+Counted outcomes and runtime identities below come from the accepted
+`runtime/evidence/final-evidence-log.json` (kind
+`flagship-intake-final-evidence`, schema version 1), produced by a real local
+`./runtime/run-final-evidence.sh` execution. Attachment SHA-256 values are
+separately sourced from the retrospective, committed
+`runtime/evidence/release-attachment-index.json`. Check both layers offline:
 
 ```bash
 node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-log.json
+node runtime/scripts/verify-release-attachments.mjs
 ```
 
-- Recorded run id: `final-20261004T122650Z` (execution mode `real-n8n`, status
+- Recorded run id: `final-20261004T143907Z` (execution mode `real-n8n`, status
   `completed`; full suite 5/5).
-- Recorded source-run commit: `5100860e7c887058f93607c6ab531ff370fa9997` — the
+- Recorded source-run commit: `2e9ed11eb32a38deff2037936b450697d4c5bcb2` — the
   commit the evidence pipeline bound its nine-file SHA-256 manifest to. It is
   **not** the later packaging/docs commit this excerpt lives at, and the two
   are never equated. The verify command above (run from the repository root)
@@ -34,19 +38,42 @@ contact data.
 | Image reference | `n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec` |
 | Docker client | 29.7.2 |
 | Docker Compose | 5.4.0 |
-| Run id | `final-20261004T122650Z` |
+| Run id | `final-20261004T143907Z` |
 | Execution mode | `real-n8n` (executed, not import-only) |
 | Status | `completed` |
 
 ## Clean-sandbox rerun comparison (from the record)
 
-- Compared with the earlier accepted run `final-20261004T122457Z`: **per-case
+- Compared with the earlier verified run `final-20261004T143803Z`: **per-case
   counted states identical**.
 - Verified clean-sandbox checks before any Docker mutation: no-owned-containers,
   no-owned-networks, no-owned-volumes, generated-tree-absent,
   census-forensics-absent, launcher-lock-absent.
-- Phase base: `19ce7afcfa1470512c7675cc5b0661e0714646d2` (the full 40-hex
+- Phase base: `4fe6c13d35c0ad47158178420a4333e2408f1ad5` (the full 40-hex
   frozen phase boundary, as recorded in the committed record).
+
+## Offline comparison attachments
+
+- Earlier full record: `runtime/evidence/prior-final-evidence-log.json`, SHA-256
+  `a4e6aa95a242661b7036626441f3f0844f6961250e71735d91512dd51d4c735e`.
+- Nine-file source-run manifest: `runtime/evidence/source-run-manifest.json`,
+  SHA-256 `7d9939859e17b022f2de9703887707eadc10f68a2290310bb0dc9498f5180b4b`,
+  attributed to the source-run commit stated above.
+- Accepted final record SHA-256:
+  `15f03416318f79e7f5b3f1a63c5475a103e95fcbbe8bf0a22d0b837dd81f9a02`;
+  committed baseline SHA-256:
+  `29a26278ab6ab9a89a649c3e314a5859c1bad4c0ee1f563d582e010d9fd010d3`.
+- Retrospective attachment index SHA-256:
+  `e09d30f99211f37536f5ac61c0f28d5fe60913735b48bd97ab74e0b45cf28f54`.
+
+The offline verifier hashes all four indexed artifact files, verifies both
+record schemas and Git-bound provenance, recomputes the two counted matrices,
+and checks all nine manifest paths against source-run Git bytes. This enables
+third-party inspection of the archived comparison; it does **not** independently
+prove that the earlier n8n execution took place. The accepted record stores
+the prior run ID and comparison assertion but does **not** hash the prior
+attachment or manifest itself; their digests are bound retrospectively by the
+separately committed index and the Git tree.
 
 ## Per-case counted results
 
@@ -79,7 +106,7 @@ effects 0) followed by one deliberate same-key retry (attempts 2, effects 1).
 | `intake-stage` graph | `758a983aae207188667f23ed7eb256efc670a80d82c62c5477906bb97b857ea6` |
 | `reviewer-decision` graph | `b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474` |
 | `approved-delivery` graph | `9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41` |
-| Historical source (byte-identical before/after runs) | `4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc` |
+| Historical source (byte-identical before/after runs) | `b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5` |
 
 ## Recorded limitations (verbatim themes from the record)
 

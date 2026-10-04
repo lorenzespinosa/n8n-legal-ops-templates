@@ -132,20 +132,7 @@
   },
   "run": {
     "execution_mode": "real-n8n",
-    "id": "final-20261004T143907Z",
-    "rerun": {
-      "clean_sandbox_checks": [
-        "no-owned-containers",
-        "no-owned-networks",
-        "no-owned-volumes",
-        "generated-tree-absent",
-        "census-forensics-absent",
-        "launcher-lock-absent"
-      ],
-      "compared_with": "final-20261004T143803Z",
-      "per_case_identical": true,
-      "phase_base": "4fe6c13d35c0ad47158178420a4333e2408f1ad5"
-    },
+    "id": "final-20261004T143803Z",
     "status": "completed"
   },
   "schema_version": 1,
