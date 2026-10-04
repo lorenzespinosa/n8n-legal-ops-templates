@@ -673,25 +673,30 @@ test('WR-06: each outer demo-state reset is followed by a freshly generated proo
 
 test('WR-09: internal mock storage is not misdescribed as memory-only', () => {
   const mock = readFileSync(path.join(ROOT, 'runtime', 'demo', 'mocks', 'server.mjs'), 'utf8');
-  const report = readFileSync(path.join(ROOT, '.planning', 'phases', '02-gated-demo-approval-gate-test-suite', '02-INDEPENDENT-REVIEW-FIX.md'), 'utf8');
+  const buyer = readFileSync(path.join(ROOT, 'docs', 'case-study.md'), 'utf8');
   const contract = readFileSync(path.join(ROOT, 'runtime', 'tests', 'gated-mock-contracts.test.mjs'), 'utf8');
   assert.match(mock, /demo-state volume contains raw fictional intake payloads/,
     'the internal persisted mock state must be disclosed separately from the sanitized admin response');
   assert.doesNotMatch(mock, /raw keys live only in the\s+in-memory state|payload remain solely in the in-memory state/i);
-  assert.doesNotMatch(report, /raw keys remain ONLY in the in-memory|payload only in the isolated in-memory/i);
+  assert.match(buyer, /demo-state volume holds raw fictional intake payloads/,
+    'the public case study must disclose disk-backed fictional mock state without relying on private planning notes');
+  assert.doesNotMatch(buyer, /raw keys remain ONLY in the in-memory|payload only in the isolated in-memory/i);
   assert.match(contract, /this in-process, no-state-file test instance/,
     'the in-memory-only contract comment must be scoped to its non-persistent in-process fixture');
   assert.doesNotMatch(contract, /full\s+fictional payload lives ONLY in the isolated in-memory delivery store/i);
 });
 
-test('security register scopes the accepted reset-proof and disk-backed mock risks', () => {
-  const security = readFileSync(path.join(ROOT, '.planning', 'phases', '02-gated-demo-approval-gate-test-suite', '02-SECURITY.md'), 'utf8');
-  assert.match(security, /same raw proof can be re-registered after an admin reset/i,
-    'the security register must disclose the accepted across-reset replay limitation');
-  assert.match(security, /demo-state volume contains raw fictional intake payloads/,
-    'the security register must disclose the mock volume contents, distinct from sanitized admin output');
-  assert.doesNotMatch(security, /No accepted risks\.|A failed run NEVER emits PASS|ephemeral runtime-only/,
-    'the security register must not make broader claims than the measured local sandbox permits');
+test('public docs scope the accepted reset-proof and disk-backed mock risks without private planning files', () => {
+  const readme = readFileSync(path.join(ROOT, 'runtime', 'README.md'), 'utf8');
+  const buyer = readFileSync(path.join(ROOT, 'docs', 'case-study.md'), 'utf8');
+  assert.match(readme, /same raw proof can be re-registered after an admin reset/i,
+    'the public runtime guide must disclose the accepted across-reset replay limitation');
+  assert.match(buyer, /demo-state volume holds raw fictional intake payloads/i,
+    'the public case study must disclose the mock volume contents, distinct from sanitized admin output');
+  assert.match(buyer, /host proof files are disk-backed until normal teardown/i,
+    'the public case study must distinguish disk-backed host files from tmpfs-backed n8n state');
+  assert.doesNotMatch(buyer, /No accepted risks\.|A failed run NEVER emits PASS|ephemeral runtime-only/,
+    'public buyer copy must not make broader claims than the measured local sandbox permits');
 });
 
 test('WR-07: n8n execution state is memory-backed and saving is disabled — no n8n disk copy of the proof', () => {
