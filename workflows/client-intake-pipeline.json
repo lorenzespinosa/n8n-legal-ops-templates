@@ -327,7 +327,7 @@
     },
     {
       "parameters": {
-        "content": "## Historical Client Intake — Greenfield & Associates\n\nINSPECTION ONLY. This single-graph template queues a review request but does not wait for or verify a reviewer decision. The CRM path can proceed after the queue write; an urgent Slack alert is not approval. The tracked source also failed validation for the supplied fixture on pinned n8n. Do not connect real accounts or activate this file. The separately tested, fictional approval-gated sandbox is in runtime/demo/."
+        "content": "## Historical Client Intake — Greenfield & Associates\n\nINSPECTION ONLY. This single-graph template queues a review request but does not wait for or verify a reviewer decision. The CRM path can proceed after the queue write; an urgent Slack alert is not approval. An unpublished prior local diagnostic observed this tracked source returning HTTP 400 for the fictional fixture on pinned n8n; the public attachments do not independently reproduce that observation. Do not connect real accounts or activate this file. The separately tested, fictional approval-gated sandbox is in runtime/demo/."
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000015",
       "name": "Sticky Note — Overview",
@@ -353,7 +353,7 @@
     },
     {
       "parameters": {
-        "content": "## Historical validation, not an accepted intake flow\n\nThe Code node expects flat first_name, last_name, contact, case type, and description fields. On pinned n8n the bundled Webhook supplies a nested body; the unchanged source answered HTTP 400 to the fictional fixture. The separately adapted local copy tested this mismatch and the ungated CRM path. Do not treat this source JSON as a ready-to-run client intake."
+        "content": "## Historical validation, not an accepted intake flow\n\nThe Code node expects flat first_name, last_name, contact, case type, and description fields. On pinned n8n the bundled Webhook supplies a nested body; an unpublished prior local diagnostic observed the unchanged source returning HTTP 400 to the fictional fixture; the public attachments do not independently reproduce that observation. The separately adapted local copy tested this mismatch and the ungated CRM path. Do not treat this source JSON as a ready-to-run client intake."
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000017",
       "name": "Sticky Note — Validation",

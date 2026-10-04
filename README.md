@@ -24,7 +24,7 @@ The clean rerun is **verification-only**: it compares a new test run against the
 
 ## Historical template index — inspection only
 
-The four original JSON files under `workflows/` are preserved for inspection. They contain real external-service URLs with placeholder identifiers and missing credential bindings; importing and configuring them can attempt external calls. They have not been accepted as working, approval-gated deployments on the pinned runtime. The original intake webhook returned HTTP 400 unchanged; only a narrowly adapted local runtime copy reached HTTP 202 and exposed an ungated mock CRM write. Do not mistake the historical files for the tested three-graph sandbox.
+The four original JSON files under `workflows/` are preserved for inspection. They contain real external-service URLs with placeholder identifiers and missing credential bindings; importing and configuring them can attempt external calls. They have not been accepted as working, approval-gated deployments on the pinned runtime. An unpublished prior local diagnostic observed the original intake webhook returning HTTP 400 on pinned n8n; the public attachments do not independently reproduce that observation. Only a narrowly adapted local runtime copy reached HTTP 202 and exposed an ungated mock CRM write in the committed baseline. Do not mistake the historical files for the tested three-graph sandbox.
 
 ## What it does
 

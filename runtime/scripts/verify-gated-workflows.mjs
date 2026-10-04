@@ -98,7 +98,7 @@ export const DELIVERY_INVOKE_URL = `${N8N_ORIGIN}/webhook/${DELIVERY_WEBHOOK_PAT
 
 // The reviewed historical source snapshot after sticky-note-only corrections.
 export const HISTORICAL_SOURCE_SHA256 =
-  'b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5';
+  '4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141';
 
 // CR-03: pinned SHA-256 of every load-bearing Code-node jsCode body in the
 // three independently reviewed committed gated exports. Marker-string checks

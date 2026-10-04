@@ -84,3 +84,19 @@ test('the public architecture and contribution guidance do not present historica
   assert.doesNotMatch(architecture, /Every decision-making workflow includes a mandatory human review gate/);
   assert.doesNotMatch(contributing, /provides production-quality n8n workflow templates/);
 });
+
+test('all prominent HTTP 400 statements identify an unpublished prior observation, not reverified release evidence', () => {
+  const readme = text('README.md');
+  const historical = workflow('client-intake-pipeline');
+  const overview = note(historical, 'Sticky Note — Overview');
+  const validation = note(historical, 'Sticky Note — Validation');
+  for (const [label, statement] of [
+    ['README', readme],
+    ['intake overview', overview],
+    ['intake validation', validation],
+  ]) {
+    assert.match(statement, /unpublished prior local diagnostic/i, `${label}: 400 must be labeled as an unpublished prior observation`);
+    assert.match(statement, /observed[^.]*HTTP 400|HTTP 400[^.]*observed/i, `${label}: 400 is an observation, not a new measured claim`);
+    assert.match(statement, /public attachments do not independently reproduce/i, `${label}: no raw negative-control capture is included`);
+  }
+});
