@@ -70,7 +70,7 @@ const FIXTURE_DIGEST_IMAGE =
 
 // Public-safe release boundary: the committed fictional baseline on this
 // branch, not the private staging milestone or an arbitrary current HEAD.
-const FROZEN_PHASE_BASE_SHA = '19ce7afcfa1470512c7675cc5b0661e0714646d2';
+const FROZEN_PHASE_BASE_SHA = '27adc322b74d88b9eab64553ae7e8657a78c82ce';
 
 /**
  * A representative capture of the launcher's genuine combined console
@@ -104,7 +104,7 @@ function fixtureCapture() {
     '[gated] CASE PASS (5/5) crm-recovery: deterministic pre-commit CRM failure (1/0) plus one deliberate same-key retry (2/1) commits exactly one effect — queue=1 approval_actions=1 CRM ATTEMPTS=2 CRM EFFECTS=1',
     '[gated] FULL-SUITE PASS: 5/5 case groups green on real pinned n8n 2.37.10 — per-case lines above carry the exact CRM ATTEMPTS and CRM EFFECTS counts',
     '[gated] preservation: 14/14 unrelated containers identical (ID + running state); owned project containers/networks/volumes and the ephemeral tree (nonce, census, lock) fully removed',
-    '[gated] evidence: n8n=2.37.10 (exact pin), intake id=greenfield-intake-gated-demo, reviewer id=greenfield-reviewer-decision-demo, delivery id=greenfield-approved-delivery-demo, historical source sha256=4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc, intake workflow sha256=1111111111111111111111111111111111111111111111111111111111111111, reviewer workflow sha256=2222222222222222222222222222222222222222222222222222222222222222, delivery workflow sha256=3333333333333333333333333333333333333333333333333333333333333333',
+    '[gated] evidence: n8n=2.37.10 (exact pin), intake id=greenfield-intake-gated-demo, reviewer id=greenfield-reviewer-decision-demo, delivery id=greenfield-approved-delivery-demo, historical source sha256=b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5, intake workflow sha256=1111111111111111111111111111111111111111111111111111111111111111, reviewer workflow sha256=2222222222222222222222222222222222222222222222222222222222222222, delivery workflow sha256=3333333333333333333333333333333333333333333333333333333333333333',
     '[gated] boundaries: every approval in the matrix was SIMULATED reviewer input (a separate recorded HTTP action by the test suite — not a human review); all services and data are local fictional mocks, no live outcome is claimed',
   ];
   return lines.join('\r\n');
@@ -168,7 +168,7 @@ test('parseLauncherCapture parses the fixture capture into five distinct cases w
   assert.deepEqual(parsed.full_suite, { passed: 5, total: 5, n8n_version: '2.37.10' });
   assert.deepEqual(parsed.preservation, { preserved: 14, total: 14 });
   assert.equal(parsed.n8n_version, '2.37.10', 'the exact-pin runtime version line must be parsed');
-  assert.equal(parsed.evidence_hashes.historical_source, '4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc');
+  assert.equal(parsed.evidence_hashes.historical_source, 'b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5');
   assert.equal(parsed.evidence_hashes.intake_workflow, '1'.repeat(64));
   assert.equal(parsed.evidence_hashes.reviewer_workflow, '2'.repeat(64));
   assert.equal(parsed.evidence_hashes.delivery_workflow, '3'.repeat(64));
@@ -214,7 +214,7 @@ test('buildFinalEvidenceRecord produces the full PACK-01 record: exact commands,
   // machine-parsed from the launcher's evidence line.
   assert.equal(record.provenance.head, 'a'.repeat(40));
   assert.deepEqual(record.provenance.evidence_sha256, {
-    historical_source: '4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc',
+    historical_source: 'b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5',
     intake_workflow: '1'.repeat(64),
     reviewer_workflow: '2'.repeat(64),
     delivery_workflow: '3'.repeat(64),
@@ -1182,7 +1182,7 @@ test('the rerun phase base is pinned to the frozen commit (WR-02): HEAD, branch 
   // The rerun driver pins the frozen base and refuses HEAD/short forms before
   // any Docker mutation.
   const rerunScript = readFileSync(path.join(ROOT, 'runtime', 'run-clean-rerun.sh'), 'utf8');
-  assert.match(rerunScript, /19ce7afcfa1470512c7675cc5b0661e0714646d2/, 'the driver default must be the public-safe frozen full SHA');
+  assert.match(rerunScript, /27adc322b74d88b9eab64553ae7e8657a78c82ce/, 'the driver default must be the public-safe frozen full SHA');
   const argLoopEnd = rerunScript.indexOf('done', rerunScript.indexOf('while [ "$#" -gt 0 ]'));
   const dockerContact = rerunScript.indexOf('docker info');
   const baseValidation = rerunScript.indexOf('PHASE_BASE_SHA=');

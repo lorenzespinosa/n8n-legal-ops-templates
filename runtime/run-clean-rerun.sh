@@ -81,7 +81,7 @@ PINNED_IMAGE="n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9
 # An override must name this same commit (any ref form is resolved to its
 # full 40-hex SHA); HEAD, the current tip, another ancestor, or a short
 # form fails closed below, before any Docker mutation.
-PHASE_BASE_FROZEN="19ce7afcfa1470512c7675cc5b0661e0714646d2"
+PHASE_BASE_FROZEN="27adc322b74d88b9eab64553ae7e8657a78c82ce"
 PHASE_BASE="$PHASE_BASE_FROZEN"
 while [ "$#" -gt 0 ]; do
   case "$1" in

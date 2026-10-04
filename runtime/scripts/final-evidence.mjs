@@ -79,7 +79,7 @@ const HEX64 = /^[0-9a-f]{64}$/;
 // WR-02: the FROZEN release boundary is the committed fictional baseline on
 // this sanitized branch. A rerun record must name this exact full 40-hex SHA;
 // the private staging milestone and all short/ref forms are rejected.
-export const FROZEN_PHASE_BASE_SHA = '19ce7afcfa1470512c7675cc5b0661e0714646d2';
+export const FROZEN_PHASE_BASE_SHA = '27adc322b74d88b9eab64553ae7e8657a78c82ce';
 const isFrozenPhaseBase = (value) => value === FROZEN_PHASE_BASE_SHA;
 
 // The exact executed command strings the record must carry (PACK-01): the

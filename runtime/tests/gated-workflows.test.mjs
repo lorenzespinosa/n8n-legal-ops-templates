@@ -81,7 +81,7 @@ test('honest committed intake-stage.json verifies with ok:true and a full invari
   assert.equal(result.historicalSourceOk, true, 'the immutable historical source hash must be checked and match');
   assert.equal(
     result.historicalSourceSha256,
-    '4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc',
+    'b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5',
     'the verifier must pin the exact historical source hash'
   );
 });

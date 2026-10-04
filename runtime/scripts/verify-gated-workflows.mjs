@@ -24,9 +24,9 @@
 //      sticky notes included) resolves to the local demo mock origin.
 //   7. Webhook shape: exactly one POST webhook in responseNode mode with the
 //      pinned path, carrying the body-envelope unwrap contract.
-//   8. Historical control: the immutable Phase 1 source hash is verified
-//      alongside the graph so a drifted control can never coexist with an
-//      accepted Phase 2 export.
+//   8. Historical control: the approved note-only-corrected source hash is
+//      verified alongside the graph so later unreviewed drift cannot coexist
+//      with an accepted gated export. Executable source semantics were kept.
 //   9. Pinned code hashes (CR-03): every load-bearing Code node's jsCode body
 //      must hash to the pinned SHA-256 of the independently reviewed
 //      committed graph — marker strings in comments prove nothing; any jsCode
@@ -96,9 +96,9 @@ export const CRM_URL = `${MOCK_ORIGIN}/demo/v1/crm/contacts`;
 export const N8N_ORIGIN = 'http://n8n:5678';
 export const DELIVERY_INVOKE_URL = `${N8N_ORIGIN}/webhook/${DELIVERY_WEBHOOK_PATH}`;
 
-// The immutable Phase 1 historical control (workflows/client-intake-pipeline.json).
+// The reviewed historical source snapshot after sticky-note-only corrections.
 export const HISTORICAL_SOURCE_SHA256 =
-  '4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc';
+  'b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5';
 
 // CR-03: pinned SHA-256 of every load-bearing Code-node jsCode body in the
 // three independently reviewed committed gated exports. Marker-string checks
@@ -602,7 +602,7 @@ export function verifyGatedWorkflow(workflow) {
       historicalSourceSha256 = sha256(historicalBytes);
       if (historicalSourceSha256 !== HISTORICAL_SOURCE_SHA256) {
         errors.push(
-          `immutable historical source drifted: expected ${HISTORICAL_SOURCE_SHA256}, found ${historicalSourceSha256} — the Phase 1 control must stay byte-identical`
+          `immutable historical source drifted: expected ${HISTORICAL_SOURCE_SHA256}, found ${historicalSourceSha256} — this reviewed release snapshot must stay byte-identical`
         );
       } else {
         historicalSourceOk = true;
