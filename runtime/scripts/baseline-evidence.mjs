@@ -58,7 +58,7 @@ export const PRIOR_ORIGINAL_TEMPLATE_DIAGNOSTIC = Object.freeze({
   scope: 'unmodified-tracked-source',
   observed: 'prior-diagnostic',
   http_status: 400,
-  note: 'separately observed negative control: the tracked flat-reading Validate Fields rejects the n8n Webhook body envelope with HTTP 400 (see 01-01-HALT-2026-10-03.md); not a measurement of this run',
+  note: 'unpublished prior local diagnostic (not a measurement of this baseline run): the tracked flat-reading Validate Fields was observed returning HTTP 400 for the n8n Webhook body envelope on the pinned runtime; no raw negative-control capture is included in this public record',
 });
 
 export const FIXED_NOTES =

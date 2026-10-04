@@ -1,6 +1,6 @@
 # Rebuilding Legal-Ops Workflows in Zapier
 
-Conceptual guide for translating the n8n legal-ops templates to Zapier. Focuses on logic and step mapping, not UI navigation.
+Conceptual design sketch only — no Zap has been built or tested here. The historical n8n files do **not** implement the approval gates sketched below. A proposed staging Zap must stop before any CRM, SMS, or assignment action; only a separately triggered, explicitly approved Zap may deliver. Do not connect live accounts from this guide.
 
 ---
 
@@ -21,30 +21,22 @@ Conceptual guide for translating the n8n legal-ops templates to Zapier. Focuses 
 ### Flow
 
 ```
-Trigger: Webhooks by Zapier (Catch Hook)
-  → Step 2: Code by Zapier (validate required fields, normalize phone to E.164)
-  → Step 3: Filter (stop if valid=false)
-  → Step 4: Webhooks by Zapier (GET Airtable — check duplicates by email/phone)
-  → Step 5: Paths
-      ├─ Path A [duplicate found]:
-      │    → Webhooks by Zapier (PATCH Airtable — update existing record)
-      └─ Path B [new lead]:
-           → Webhooks by Zapier (POST OpenAI — classify case type)
-           → Code by Zapier (parse AI response)
-           → Webhooks by Zapier (POST Airtable — Human Review Queue)  ← MANDATORY GATE
-           → Paths
-                ├─ Path B1 [urgent]:
-                │    → Webhooks by Zapier (POST Slack — urgent alert)
-                │    → Webhooks by Zapier (POST Lawmatics — create contact)
-                └─ Path B2 [standard]:
-                     → Webhooks by Zapier (POST Lawmatics — create contact)
+Zap 1 (proposed staging): Catch Hook → validate → Filter valid → duplicate lookup
+  → Paths
+      ├─ existing: update pending staging record → STOP
+      └─ new: classify → write pending review request → STOP
+
+Zap 2 (SEPARATE approved-delivery proposal): trigger on recorded decision
+  → Filter approved state → check same-key idempotency → Paths
+      ├─ urgent: coordinator alert, proposed CRM handoff, audit
+      └─ standard: proposed CRM handoff, audit
 ```
 
 ### Zapier-Specific Notes
 
 - **Validation**: Code by Zapier (JavaScript) validates fields and returns `{valid: true/false, errors: [...]}`. The Filter step after checks `valid` equals `true`.
 - **Phone normalization**: Handle in the Code step — `phone.startsWith('+') ? phone : '+1' + phone.replace(/\D/g, '')`.
-- **Human review gate**: Write to Airtable review queue and stop. A separate Zap triggers on Airtable record update (status changed to "approved") and executes the CRM write.
+- **Human review gate design**: Zap 1 stops at the queue; Zap 2 must verify an explicit approval before a CRM write. This is not an implemented Zap or a property of the historical n8n file.
 - **Nested Paths**: Zapier supports Paths within Paths. Use the outer Path for duplicate check, inner Path for urgency routing.
 
 ---
@@ -54,24 +46,19 @@ Trigger: Webhooks by Zapier (Catch Hook)
 ### Flow
 
 ```
-Trigger: Webhooks by Zapier (Catch Hook — OpenPhone payload)
-  → Step 2: Code by Zapier (extract caller info, normalize phone, check if missed inbound)
-  → Step 3: Filter (stop if direction != inbound OR status != missed)
-  → Step 4: Webhooks by Zapier (POST OpenAI — intent classification)
-  → Step 5: Code by Zapier (parse AI response, determine if new potential client)
-  → Step 6: Paths
-      ├─ Path A [new potential client]:
-      │    → Webhooks by Zapier (POST Airtable — Human Review Queue)  ← MANDATORY GATE
-      │    → Webhooks by Zapier (POST OpenPhone — send SMS)
-      │    → Webhooks by Zapier (POST Airtable — log to MissedCallLog)
-      └─ Path B [not new client]:
-           → Webhooks by Zapier (POST Airtable — log only)
+Zap 1 (proposed staging): Catch Hook → normalize → Filter missed inbound
+  → classify → Paths
+      ├─ new potential client: write pending SMS review request → STOP
+      └─ other: log if appropriate → STOP (no SMS)
+
+Zap 2 (SEPARATE approved-send proposal): trigger on recorded decision
+  → Filter approved, consent, and duplicate suppression → send SMS → audit
 ```
 
 ### Zapier-Specific Notes
 
 - **Filter as hard gate**: Zapier's Filter stops execution entirely (unlike n8n IF which has two output branches). Place it after the extraction Code step to kill the Zap for non-missed/non-inbound calls.
-- **Human review gate**: Same two-Zap pattern. Zap 1 writes to review queue. Zap 2 (triggered by Airtable "record updated" with status=approved) sends the actual SMS.
+- **Human review gate design**: A proposed second Zap must verify approval and consent before SMS. The historical n8n graph instead connects its queue directly to an SMS request; neither that graph nor this unbuilt Zap proves a safe send path.
 - **Deduplication**: Add a Webhooks step (GET Airtable) before the review queue write to check if this phone number already has a pending review from the last 24 hours. Use a Filter to skip if found.
 - **SMS content**: The AI-suggested SMS text is stored in the review queue. The human reviewer can edit it in Airtable before approving.
 
@@ -106,6 +93,7 @@ Trigger: Schedule by Zapier (every day at 6AM)
 - **Looping**: Zapier's Loop step iterates through the `valid_records` array. Each iteration makes one POST to Clio. Be aware of Zapier's task limits — each loop iteration counts as a task.
 - **Rate limiting**: Zapier doesn't have built-in rate limiting. If Clio has rate limits, add a Delay step (Delay by Zapier) inside the loop — but this burns tasks. Consider batching in the Code step instead if Clio supports bulk create.
 - **Idempotency**: Add a lookup step before each Clio write to check if the matter_id + sync_date already has an entry. Skip if found.
+- **Historical source warning**: The existing n8n billing formatter does not detect duplicate matter IDs. The lookup above is an unimplemented design step, not a property of that JSON file.
 
 ---
 
@@ -114,36 +102,23 @@ Trigger: Schedule by Zapier (every day at 6AM)
 ### Flow
 
 ```
-Trigger: Webhooks by Zapier (Catch Hook)
-  → Step 2: Code by Zapier (extract + validate case details)
-  → Step 3: Filter (stop if valid=false)
-  → Step 4: Webhooks by Zapier (POST OpenAI — classify + urgency score)
-  → Step 5: Code by Zapier (parse AI classification)
-  → Step 6: Webhooks by Zapier (POST Airtable — Human Review Queue)  ← MANDATORY GATE
-  → Step 7: Paths
-      ├─ Path A [personal_injury]:
-      │    → Webhooks by Zapier (POST Filevine — assign J. Greenfield)
-      │    → Webhooks by Zapier (POST Slack — notification)
-      │    → Webhooks by Zapier (POST Airtable — audit log)
-      ├─ Path B [dui_defense]:
-      │    → Webhooks by Zapier (POST Filevine — assign S. Park)
-      │    → Webhooks by Zapier (POST Slack — notification)
-      │    → Webhooks by Zapier (POST Airtable — audit log)
-      ├─ Path C [criminal_defense]:
-      │    → Webhooks by Zapier (POST Filevine — assign M. Torres)
-      │    → Webhooks by Zapier (POST Slack — notification)
-      │    → Webhooks by Zapier (POST Airtable — audit log)
-      └─ Path D [other / fallback]:
-           → Webhooks by Zapier (POST Filevine — assign A. Chen)
-           → Webhooks by Zapier (POST Slack — notification)
-           → Webhooks by Zapier (POST Airtable — audit log)
+Zap 1 (proposed staging): Catch Hook → validate → Filter valid → classify
+  → write pending assignment review request → STOP
+
+Zap 2 (SEPARATE approved-assignment proposal): trigger on recorded decision
+  → Filter approved state → Paths by case_type
+      ├─ personal_injury: proposed assignment to J. Greenfield
+      ├─ dui_defense: proposed assignment to S. Park
+      ├─ criminal_defense: proposed assignment to M. Torres
+      └─ other: proposed assignment to A. Chen
+  → notify and audit the observed outcome
 ```
 
 ### Zapier-Specific Notes
 
 - **Paths for routing**: Each Path checks `case_type` equals a specific value. The last Path (D) uses "otherwise" to catch fallback cases.
 - **Duplication across Paths**: Zapier Paths don't reconverge. The Slack + audit log steps are duplicated in each Path. To reduce duplication, use a **Sub-Zap**: create a reusable Sub-Zap for "notify + audit" and call it from each Path.
-- **Human review gate**: Same two-Zap pattern. The review queue write happens BEFORE the Paths. In production, the Paths would live in Zap 2 (triggered by approval), not Zap 1.
+- **Human review gate design**: Zap 1 stops at the queue; a separate approved-decision Zap would own assignment paths. No Zapier implementation or historical n8n approval gate is claimed.
 - **Attorney roster as lookup**: Instead of hardcoding attorneys in each Path, use a Lookup Table (Formatter by Zapier) or a Storage by Zapier entry mapping case_type to attorney name. This makes roster changes easier.
 
 ---
@@ -166,12 +141,12 @@ Trigger: Webhooks by Zapier (Catch Hook)
 
 ### Human Review Gates in Zapier
 
-Zapier doesn't support "pause and wait for approval." The standard pattern:
+This guide proposes a two-Zap approval design rather than treating a queue write as a gate:
 
 1. **Zap 1** (trigger workflow) writes the pending action to an Airtable review queue and stops
 2. **Zap 2** (triggered by Airtable "Record Updated" with status=approved) executes the downstream action (CRM write, SMS send, attorney assignment)
 
-This is functionally identical to the Make two-scenario pattern.
+The design must be independently built and tested before any live use; it is not implemented by the historical templates or by this guide.
 
 ### Task/Cost Considerations
 
