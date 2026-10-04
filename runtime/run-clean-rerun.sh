@@ -76,12 +76,12 @@ EVIDENCE_LOG="runtime/evidence/final-evidence-log.json"
 # rename (mv) that can only happen after every gate passed.
 CANDIDATE="runtime/evidence/.clean-rerun-candidate.json"
 PINNED_IMAGE="n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec"
-# The phase base commit (WR-02): the FROZEN phase boundary —
-# "docs(03): freeze evidence and case-study scope", the planning-time tip.
+# The phase base commit (WR-02): the FROZEN release boundary — the committed
+# fictional baseline on this sanitized public-base branch.
 # An override must name this same commit (any ref form is resolved to its
 # full 40-hex SHA); HEAD, the current tip, another ancestor, or a short
 # form fails closed below, before any Docker mutation.
-PHASE_BASE_FROZEN="8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a"
+PHASE_BASE_FROZEN="19ce7afcfa1470512c7675cc5b0661e0714646d2"
 PHASE_BASE="$PHASE_BASE_FROZEN"
 while [ "$#" -gt 0 ]; do
   case "$1" in

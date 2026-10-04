@@ -76,22 +76,11 @@ const RUN_ID = /^final-\d{8}T\d{6}Z$/;
 const HEX40 = /^[0-9a-f]{40}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 
-// WR-02: the FROZEN phase-boundary commit ("docs(03): freeze evidence and
-// case-study scope" — the planning-time tip). The only phase base a rerun
-// record may claim: a full 40-hex SHA must equal this commit. The committed
-// accepted record carries the legacy short form below; it is accepted only
-// because it is a prefix of the frozen SHA (asserted at module load).
-export const FROZEN_PHASE_BASE_SHA = '8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a';
-const LEGACY_PHASE_BASE_SHORT_FORMS = ['8d0b7c7'];
-for (const shortForm of LEGACY_PHASE_BASE_SHORT_FORMS) {
-  if (!/^[0-9a-f]{4,39}$/.test(shortForm) || !FROZEN_PHASE_BASE_SHA.startsWith(shortForm)) {
-    throw new Error(
-      `legacy phase-base short form ${JSON.stringify(shortForm)} must be a hex prefix of the frozen SHA ${FROZEN_PHASE_BASE_SHA}`
-    );
-  }
-}
-const isFrozenPhaseBase = (value) =>
-  value === FROZEN_PHASE_BASE_SHA || LEGACY_PHASE_BASE_SHORT_FORMS.includes(value);
+// WR-02: the FROZEN release boundary is the committed fictional baseline on
+// this sanitized branch. A rerun record must name this exact full 40-hex SHA;
+// the private staging milestone and all short/ref forms are rejected.
+export const FROZEN_PHASE_BASE_SHA = '19ce7afcfa1470512c7675cc5b0661e0714646d2';
+const isFrozenPhaseBase = (value) => value === FROZEN_PHASE_BASE_SHA;
 
 // The exact executed command strings the record must carry (PACK-01): the
 // one-command driver, the unchanged launcher it executes, the standalone
@@ -567,7 +556,7 @@ export function verifyFinalEvidence(record) {
       ) {
         bad(
           'run.rerun.phase_base',
-          `must be the frozen phase-boundary commit ${FROZEN_PHASE_BASE_SHA} (full 40-hex; the committed record's legacy short form "8d0b7c7" is accepted) — a branch name, HEAD, or any other ref is not a phase boundary`
+          `must be the frozen public-safe baseline commit ${FROZEN_PHASE_BASE_SHA} (full 40-hex) — a short form, branch name, HEAD, or any other ref is not the release boundary`
         );
       }
     }

@@ -68,9 +68,9 @@ const EXPECTED_OBSERVED = [
 const FIXTURE_DIGEST_IMAGE =
   'n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec';
 
-// WR-02: the frozen phase-boundary commit ("docs(03): freeze evidence and
-// case-study scope") — the only phase base a rerun record may claim.
-const FROZEN_PHASE_BASE_SHA = '8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a';
+// Public-safe release boundary: the committed fictional baseline on this
+// branch, not the private staging milestone or an arbitrary current HEAD.
+const FROZEN_PHASE_BASE_SHA = '19ce7afcfa1470512c7675cc5b0661e0714646d2';
 
 /**
  * A representative capture of the launcher's genuine combined console
@@ -1152,13 +1152,17 @@ test('the rerun phase base is pinned to the frozen commit (WR-02): HEAD, branch 
     'the frozen full SHA must verify as the phase base'
   );
 
-  // Pure fixture: the precise legacy short form "8d0b7c7" (a prefix of the
-  // frozen SHA) must still verify, while the HEAD and arbitrary bases above
-  // must fail.
+  // The old staging-only boundary (short and full) must NOT verify in a
+  // sanitized public checkout with a different, reachable phase base.
   assert.equal(
     evidence.verifyFinalEvidence(withBase('8d0b7c7')).ok,
-    true,
-    'the legacy short-form phase base must still verify as a prefix of the frozen SHA'
+    false,
+    'the private staging short-form phase base must not verify in this release'
+  );
+  assert.equal(
+    evidence.verifyFinalEvidence(withBase('8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a')).ok,
+    false,
+    'the private staging full phase base must not verify in this release'
   );
 
   // The committed accepted record — republished by the successful clean
@@ -1178,7 +1182,7 @@ test('the rerun phase base is pinned to the frozen commit (WR-02): HEAD, branch 
   // The rerun driver pins the frozen base and refuses HEAD/short forms before
   // any Docker mutation.
   const rerunScript = readFileSync(path.join(ROOT, 'runtime', 'run-clean-rerun.sh'), 'utf8');
-  assert.match(rerunScript, /8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a/, 'the driver default must be the frozen full SHA');
+  assert.match(rerunScript, /19ce7afcfa1470512c7675cc5b0661e0714646d2/, 'the driver default must be the public-safe frozen full SHA');
   const argLoopEnd = rerunScript.indexOf('done', rerunScript.indexOf('while [ "$#" -gt 0 ]'));
   const dockerContact = rerunScript.indexOf('docker info');
   const baseValidation = rerunScript.indexOf('PHASE_BASE_SHA=');
