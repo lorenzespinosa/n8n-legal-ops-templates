@@ -122,7 +122,7 @@ verification-only clean-sandbox rerun bound to this release's committed
 baseline, then verify the committed record:
 
 ```bash
-./runtime/run-clean-rerun.sh --phase-base 4fe6c13d35c0ad47158178420a4333e2408f1ad5
+./runtime/run-clean-rerun.sh --phase-base 2515498259a1e47ecb5088b2cb0ea22b3c63393b
 node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-log.json
 node runtime/scripts/verify-release-attachments.mjs
 ```
@@ -144,7 +144,7 @@ study. The observed acceptance and explicit comparison lines were:
 
 ```
 FINAL-EVIDENCE PASS: 5/5 cases captured; record verified and published to runtime/evidence/final-evidence-log.json
-RERUN COMPARISON PASS: per-case counted states identical (final-20261004T143803Z vs final-20261004T143907Z)
+RERUN COMPARISON PASS: per-case counted states identical (final-20261004T151046Z vs final-20261004T151153Z)
 ```
 
 Every step inside these commands is asserted, never slept over or inferred:
@@ -190,17 +190,17 @@ Supporting verdicts from the same record:
 
 **Run identity** (from the record): n8n 2.37.10; image
 `n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec`;
-Docker client 29.7.2; Docker Compose 5.4.0; run id `final-20261004T143907Z`,
+Docker client 29.7.2; Docker Compose 5.4.0; run id `final-20261004T151153Z`,
 execution mode `real-n8n`, status `completed`. The record's rerun section binds
-it to the earlier accepted run `final-20261004T143803Z` with per-case counted
+it to the earlier accepted run `final-20261004T151046Z` with per-case counted
 states identical, from a verified clean sandbox (no owned containers, networks,
 volumes, generated tree, census forensics, or launcher lock — all checked
 before any Docker mutation), over phase base
-`4fe6c13d35c0ad47158178420a4333e2408f1ad5` (the full 40-hex frozen phase
+`2515498259a1e47ecb5088b2cb0ea22b3c63393b` (the full 40-hex frozen phase
 boundary, as recorded).
 
 **Recorded source-run commit:** the evidence pipeline bound its nine-file
-SHA-256 manifest to `2e9ed11eb32a38deff2037936b450697d4c5bcb2` — the commit the
+SHA-256 manifest to `0e800e0916b90d5f2603ee1422bd7bf38cedcc82` — the commit the
 recorded runs executed at. That commit is **not** the later packaging/docs
 commit this case study lives at, and this document does not equate the two.
 The verify command in _Reproduce it_ (run from the repository root) re-checks
@@ -216,7 +216,7 @@ Provenance SHA-256 (from the record): intake graph
 graph `b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474`;
 delivery graph
 `9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41`; historical
-source `b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5`
+source `4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141`
 (byte-identical before and after every run).
 
 A sanitized public excerpt of the accepted record and the separate attachment

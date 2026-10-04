@@ -26,16 +26,16 @@
     },
     {
       "path": "runtime/evidence/baseline.json",
-      "sha256": "29a26278ab6ab9a89a649c3e314a5859c1bad4c0ee1f563d582e010d9fd010d3"
+      "sha256": "2a08577e96f88505d275e65e68792dcd0ab74f41d0eac55ae22fbbb74b96ea83"
     },
     {
       "path": "runtime/run-gated-demo.sh",
-      "sha256": "aa24ded93afed37b9bfe50f50e96ce597c87af4f7786438e7684276df38a242e"
+      "sha256": "f9e1f2f416a37280c72f6d7305e55bc5018c778c75f83477c98f32857a505dc6"
     },
     {
       "path": "workflows/client-intake-pipeline.json",
-      "sha256": "b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5"
+      "sha256": "4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141"
     }
   ],
-  "head": "2e9ed11eb32a38deff2037936b450697d4c5bcb2"
+  "head": "0e800e0916b90d5f2603ee1422bd7bf38cedcc82"
 }

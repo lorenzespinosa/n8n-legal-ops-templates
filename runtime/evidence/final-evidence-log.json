@@ -124,15 +124,15 @@
   "provenance": {
     "evidence_sha256": {
       "delivery_workflow": "9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41",
-      "historical_source": "b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5",
+      "historical_source": "4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141",
       "intake_workflow": "758a983aae207188667f23ed7eb256efc670a80d82c62c5477906bb97b857ea6",
       "reviewer_workflow": "b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474"
     },
-    "head": "2e9ed11eb32a38deff2037936b450697d4c5bcb2"
+    "head": "0e800e0916b90d5f2603ee1422bd7bf38cedcc82"
   },
   "run": {
     "execution_mode": "real-n8n",
-    "id": "final-20261004T143907Z",
+    "id": "final-20261004T151153Z",
     "rerun": {
       "clean_sandbox_checks": [
         "no-owned-containers",
@@ -142,9 +142,9 @@
         "census-forensics-absent",
         "launcher-lock-absent"
       ],
-      "compared_with": "final-20261004T143803Z",
+      "compared_with": "final-20261004T151046Z",
       "per_case_identical": true,
-      "phase_base": "4fe6c13d35c0ad47158178420a4333e2408f1ad5"
+      "phase_base": "2515498259a1e47ecb5088b2cb0ea22b3c63393b"
     },
     "status": "completed"
   },

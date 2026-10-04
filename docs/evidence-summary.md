@@ -14,9 +14,9 @@ node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-l
 node runtime/scripts/verify-release-attachments.mjs
 ```
 
-- Recorded run id: `final-20261004T143907Z` (execution mode `real-n8n`, status
+- Recorded run id: `final-20261004T151153Z` (execution mode `real-n8n`, status
   `completed`; full suite 5/5).
-- Recorded source-run commit: `2e9ed11eb32a38deff2037936b450697d4c5bcb2` — the
+- Recorded source-run commit: `0e800e0916b90d5f2603ee1422bd7bf38cedcc82` — the
   commit the evidence pipeline bound its nine-file SHA-256 manifest to. It is
   **not** the later packaging/docs commit this excerpt lives at, and the two
   are never equated. The verify command above (run from the repository root)
@@ -38,33 +38,33 @@ contact data.
 | Image reference | `n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec` |
 | Docker client | 29.7.2 |
 | Docker Compose | 5.4.0 |
-| Run id | `final-20261004T143907Z` |
+| Run id | `final-20261004T151153Z` |
 | Execution mode | `real-n8n` (executed, not import-only) |
 | Status | `completed` |
 
 ## Clean-sandbox rerun comparison (from the record)
 
-- Compared with the earlier verified run `final-20261004T143803Z`: **per-case
+- Compared with the earlier verified run `final-20261004T151046Z`: **per-case
   counted states identical**.
 - Verified clean-sandbox checks before any Docker mutation: no-owned-containers,
   no-owned-networks, no-owned-volumes, generated-tree-absent,
   census-forensics-absent, launcher-lock-absent.
-- Phase base: `4fe6c13d35c0ad47158178420a4333e2408f1ad5` (the full 40-hex
+- Phase base: `2515498259a1e47ecb5088b2cb0ea22b3c63393b` (the full 40-hex
   frozen phase boundary, as recorded in the committed record).
 
 ## Offline comparison attachments
 
 - Earlier full record: `runtime/evidence/prior-final-evidence-log.json`, SHA-256
-  `a4e6aa95a242661b7036626441f3f0844f6961250e71735d91512dd51d4c735e`.
+  `59034a01f27ffd640e0cb073fce7dc6290980467d1cd5468b6eda0f9cca1d36b`.
 - Nine-file source-run manifest: `runtime/evidence/source-run-manifest.json`,
-  SHA-256 `7d9939859e17b022f2de9703887707eadc10f68a2290310bb0dc9498f5180b4b`,
+  SHA-256 `c7bf1c214daac6143b5abd8a90ee182eaa4ea1964cb3f15a2bdd1f3dad4128f0`,
   attributed to the source-run commit stated above.
 - Accepted final record SHA-256:
-  `15f03416318f79e7f5b3f1a63c5475a103e95fcbbe8bf0a22d0b837dd81f9a02`;
+  `76795a5203570a16cd37e667e8720927353a68c648253e8c786bf302b6df7200`;
   committed baseline SHA-256:
-  `29a26278ab6ab9a89a649c3e314a5859c1bad4c0ee1f563d582e010d9fd010d3`.
+  `2a08577e96f88505d275e65e68792dcd0ab74f41d0eac55ae22fbbb74b96ea83`.
 - Retrospective attachment index SHA-256:
-  `e09d30f99211f37536f5ac61c0f28d5fe60913735b48bd97ab74e0b45cf28f54`.
+  `783267e605491f6ca2a00efd1579655ae7a2eb3579c92c7559c3dde9b1436a4b`.
 
 The offline verifier hashes all four indexed artifact files, verifies both
 record schemas and Git-bound provenance, recomputes the two counted matrices,
@@ -106,7 +106,7 @@ effects 0) followed by one deliberate same-key retry (attempts 2, effects 1).
 | `intake-stage` graph | `758a983aae207188667f23ed7eb256efc670a80d82c62c5477906bb97b857ea6` |
 | `reviewer-decision` graph | `b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474` |
 | `approved-delivery` graph | `9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41` |
-| Historical source (byte-identical before/after runs) | `b75f67261753343f4f1791aefa68a0176f8a505b37de8d0133b5dd24168640f5` |
+| Historical source (byte-identical before/after runs) | `4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141` |
 
 ## Recorded limitations (verbatim themes from the record)
 
