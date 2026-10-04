@@ -321,27 +321,26 @@ export function readmeRepointed(readme) {
   return { ok: issues.length === 0, issues };
 }
 
-// --- Guard 11: truthful recorded-rerun history vs current procedure (FD-03-B) --
+// --- Guard 11: truthful public-release promotion vs current rerun procedure --
 //
-// The recorded rerun (final-20261004T072326Z) ran the pre-closure drivers:
-// its canonical promotion happened after every comparison, manifest, scan,
-// and regression gate but BEFORE the then-current fallible end-state tree
-// check — the exact post-promotion window RR-03-A later closed. The
-// reproduction prose must state that ordering truthfully, must never claim
-// the recorded run promoted "only after every check passed", and must keep
-// describing today's ordinary rerun as verification-only. History and
-// current procedure are asserted separately so they cannot be blended.
+// The accepted public-safe record was explicitly republished by the standalone
+// driver after its Git-bound and manifest checks. Unlike the earlier private
+// staging record, it has no post-promotion failure window. Ordinary clean
+// reruns still verify only; they never replace the accepted record.
 export function rerunHistoryTruth(caseStudy) {
   const issues = [];
-  const falseOrdering = /promoted(?:\s+atomically)?\s+only\s+after\s+every\s+check(?:\s+passed)?/i;
-  if (falseOrdering.test(caseStudy)) {
-    issues.push('claims a promotion happened "only after every check passed" — historically false for the recorded rerun (its promotion preceded the then-current end-state check)');
+  const text = caseStudy.replace(/\s+/g, ' ');
+  if (/before its then-current final end-state check/i.test(text)) {
+    issues.push('must not attribute the private pre-closure promotion order to the new public-safe run');
   }
-  if (!/before\s+its\s+then-current\s+final\s+end-state\s+check/i.test(caseStudy)) {
-    issues.push('must state the recorded rerun promoted before its then-current final end-state check');
+  if (!/accepted record was promoted by the standalone evidence driver only after its Git-bound verifier and manifest checks/i.test(text)) {
+    issues.push('must attribute canonical promotion to the standalone driver and its pre-promotion Git-bound checks');
   }
-  if (!/verification-only/.test(caseStudy)) {
-    issues.push('must keep describing today\u2019s ordinary rerun as verification-only');
+  if (!/an ordinary rerun today is verification-only/i.test(text)) {
+    issues.push('must keep the ordinary rerun verification-only');
+  }
+  if (!/standalone run-final-evidence\.sh remains an explicit republishing action/i.test(text)) {
+    issues.push('must distinguish an explicit republish from verification-only reproduction');
   }
   return { ok: issues.length === 0, issues };
 }
@@ -479,7 +478,7 @@ test('runtime/README.md deferral lines are repointed at the delivered Phase 3 ar
   assert.deepEqual(verdict.issues, [], verdict.issues.join('; '));
 });
 
-test('the reproduction prose states the recorded rerun ordering truthfully and keeps today\u2019s rerun verification-only (FD-03-B)', () => {
+test('the public-safe record attributes promotion to the standalone driver and keeps ordinary reruns verification-only', () => {
   const verdict = rerunHistoryTruth(caseStudy);
   assert.deepEqual(verdict.issues, [], verdict.issues.join('; '));
 });
@@ -561,12 +560,12 @@ test('deliberate-violation fixtures prove every guard can fail', () => {
   const repointedReadme = 'The evidence log, rerun record, and case study are delivered: see runtime/evidence/final-evidence-log.json and docs/case-study.md.\n';
   assert.ok(readmeRepointed(repointedReadme).ok, 'the repointed wording must pass');
 
-  // Guard 11 — rerun history truth: the old blended "only after every check"
-  // claim fails; the truthful historical/current split passes.
-  const falseHistory = 'the committed record was promoted atomically only after every check passed';
-  assert.ok(!rerunHistoryTruth(falseHistory).ok, 'the historically false "only after every check passed" ordering claim must fail');
-  const truthfulHistory = 'the recorded rerun promoted the verified candidate before its then-current final end-state check; an ordinary rerun today is verification-only';
-  assert.ok(rerunHistoryTruth(truthfulHistory).ok, 'the truthful historical/current split must pass');
+  // Guard 11 — the private staging ordering must not be retrojected onto the
+  // new accepted record; the explicit standalone publication is named.
+  const falseHistory = 'the recorded rerun promoted the verified candidate before its then-current final end-state check';
+  assert.ok(!rerunHistoryTruth(falseHistory).ok, 'the private staging ordering must fail for this public-safe record');
+  const truthfulHistory = 'the accepted record was promoted by the standalone evidence driver only after its Git-bound verifier and manifest checks; an ordinary rerun today is verification-only; standalone run-final-evidence.sh remains an explicit republishing action';
+  assert.ok(rerunHistoryTruth(truthfulHistory).ok, 'the public-safe promotion and ordinary rerun distinction must pass');
 
   // Guard 12 — PASS-marker truth: the broad blanket no-PASS claim fails; the
   // substep-marker vs withheld-outer-verdict distinction passes.
