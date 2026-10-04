@@ -1152,17 +1152,17 @@ test('the rerun phase base is pinned to the frozen commit (WR-02): HEAD, branch 
     'the frozen full SHA must verify as the phase base'
   );
 
-  // The old staging-only boundary (short and full) must NOT verify in a
-  // sanitized public checkout with a different, reachable phase base.
+  // Neither a short spelling of the release base nor an unrelated full SHA
+  // may stand in for the exact committed boundary.
   assert.equal(
-    evidence.verifyFinalEvidence(withBase('8d0b7c7')).ok,
+    evidence.verifyFinalEvidence(withBase(FROZEN_PHASE_BASE_SHA.slice(0, 7))).ok,
     false,
-    'the private staging short-form phase base must not verify in this release'
+    'a short-form phase base must not verify as the frozen full SHA'
   );
   assert.equal(
-    evidence.verifyFinalEvidence(withBase('8d0b7c74c1173f838280d28ee76a0d59ff0b0a5a')).ok,
+    evidence.verifyFinalEvidence(withBase('a'.repeat(40))).ok,
     false,
-    'the private staging full phase base must not verify in this release'
+    'an unrelated full phase base must not verify in this release'
   );
 
   // The committed accepted record — republished by the successful clean
