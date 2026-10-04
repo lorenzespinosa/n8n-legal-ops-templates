@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "flagship-intake-baseline",
+  "run": {
+    "id": "baseline-20261004T122101Z",
+    "started_at": "2026-10-04T12:21:01Z",
+    "completed_at": "2026-10-04T12:21:20.506Z",
+    "execution_mode": "real-n8n",
+    "status": "completed"
+  },
+  "provenance": {
+    "source_commit": "5d61ea1c52bcda1d9bb3f4b927d935d52745d98b",
+    "fixture": {
+      "path": "payloads/intake-new-lead.json",
+      "sha256": "a24f99bc9723119baa21ce65261c2a4218b3172f0cbab5fd2962d337c90fe05a"
+    },
+    "source_workflow": {
+      "path": "workflows/client-intake-pipeline.json",
+      "sha256": "4559c8516533a1f2150215f5662f0f78e9ab5f5059da8f64d2940479d4a9b0bc",
+      "modified_during_run": false
+    },
+    "derived_workflow": {
+      "kind": "runtime-adapted-copy",
+      "sha256": "d24fe0917c2242adf743040c324c7fd27dcc8dcf3731d22773d3e98eaf60c6d4",
+      "graph_equivalence": {
+        "ok": true,
+        "allowed_differences": 12,
+        "urls_checked": 6
+      },
+      "adaptations": {
+        "url_mappings": 6,
+        "credential_references": 5,
+        "body_bridge": {
+          "node": "Validate Fields",
+          "from": "const input = $input.first().json;",
+          "to": "const raw = $input.first().json; const input = raw.body ?? raw;",
+          "scope": "derived runtime copy only"
+        }
+      }
+    }
+  },
+  "versions": {
+    "docker_client": "29.7.2",
+    "docker_server": "29.7.2",
+    "docker_compose": "5.4.0",
+    "n8n_runtime": "2.37.10",
+    "image_reference": "n8nio/n8n@sha256:307d6065be25619aa24cfc63a7c2f04ca56d084a08c05c8e9f189a89f353b1ec"
+  },
+  "measurements": {
+    "lawmatics_contact_writes": 1,
+    "review_queue_writes": 1,
+    "approval_actions": 0,
+    "counters": {
+      "airtable_contacts_get": 1,
+      "airtable_contacts_patch": 0,
+      "airtable_queue_post": 1,
+      "openai_chat_completions_post": 1,
+      "slack_webhook_post": 0,
+      "lawmatics_contacts_post": 1,
+      "approval_actions": 0,
+      "rejected_nonfictional": 0,
+      "unknown_routes": 0
+    },
+    "webhook_status_source": "asserted by runtime/tests/baseline.e2e.test.mjs"
+  },
+  "approval_semantics": {
+    "approval_source": "dedicated admin counter (approval_actions) incremented by no workflow route",
+    "queue_writes_are_approvals": false
+  },
+  "egress": {
+    "denied": true,
+    "network_internal": true,
+    "probe_outcome": "error:ENETUNREACH",
+    "method": "runtime-net internal=true asserted via docker network inspect (primary enforcement); supplementary in-network RFC 5737 TEST-NET-1 TCP connect denied within 500 ms"
+  },
+  "diagnostics": {
+    "prior_original_template": {
+      "scope": "unmodified-tracked-source",
+      "observed": "prior-diagnostic",
+      "http_status": 400,
+      "note": "separately observed negative control: the tracked flat-reading Validate Fields rejects the n8n Webhook body envelope with HTTP 400 (see 01-01-HALT-2026-10-03.md); not a measurement of this run"
+    },
+    "adapted_run": {
+      "scope": "derived-runtime-copy",
+      "observed": "this-run",
+      "http_status": 202,
+      "source": "asserted by runtime/tests/baseline.e2e.test.mjs"
+    }
+  },
+  "notes": "Local mock-runtime measurements on the body-adapted derived runtime copy (mock Lawmatics, fictional Greenfield data); not a live business outcome. Approval gating is Phase 2 work; this baseline deliberately measures the ungated write."
+}
