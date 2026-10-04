@@ -70,7 +70,7 @@ const FIXTURE_DIGEST_IMAGE =
 
 // Public-safe release boundary: the committed fictional baseline on this
 // branch, not the private staging milestone or an arbitrary current HEAD.
-const FROZEN_PHASE_BASE_SHA = '27adc322b74d88b9eab64553ae7e8657a78c82ce';
+const FROZEN_PHASE_BASE_SHA = '4fe6c13d35c0ad47158178420a4333e2408f1ad5';
 
 /**
  * A representative capture of the launcher's genuine combined console
@@ -1182,7 +1182,7 @@ test('the rerun phase base is pinned to the frozen commit (WR-02): HEAD, branch 
   // The rerun driver pins the frozen base and refuses HEAD/short forms before
   // any Docker mutation.
   const rerunScript = readFileSync(path.join(ROOT, 'runtime', 'run-clean-rerun.sh'), 'utf8');
-  assert.match(rerunScript, /27adc322b74d88b9eab64553ae7e8657a78c82ce/, 'the driver default must be the public-safe frozen full SHA');
+  assert.match(rerunScript, /4fe6c13d35c0ad47158178420a4333e2408f1ad5/, 'the driver default must be the public-safe frozen full SHA');
   const argLoopEnd = rerunScript.indexOf('done', rerunScript.indexOf('while [ "$#" -gt 0 ]'));
   const dockerContact = rerunScript.indexOf('docker info');
   const baseValidation = rerunScript.indexOf('PHASE_BASE_SHA=');
