@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "path": "payloads/intake-new-lead.json",
+      "sha256": "a24f99bc9723119baa21ce65261c2a4218b3172f0cbab5fd2962d337c90fe05a"
+    },
+    {
+      "path": "runtime/demo/docker-compose.yml",
+      "sha256": "18e18e801be8cbeeb596f227ea4d2937a264ecdbedc7e864b398e58b8cba14de"
+    },
+    {
+      "path": "runtime/demo/mocks/server.mjs",
+      "sha256": "6e7f9b855b3bd3eabbb41445f0b8bd22bae83300e463bc8f953d9d8d02e1af49"
+    },
+    {
+      "path": "runtime/demo/workflows/approved-delivery.json",
+      "sha256": "9aa832f7ebdde6f5ebf82ab78ddfa3423f7f92cdf6cb65073e4373442730de41"
+    },
+    {
+      "path": "runtime/demo/workflows/intake-stage.json",
+      "sha256": "758a983aae207188667f23ed7eb256efc670a80d82c62c5477906bb97b857ea6"
+    },
+    {
+      "path": "runtime/demo/workflows/reviewer-decision.json",
+      "sha256": "b0dc8979d4ac410aa566091de5c0b12c60b05698241bc80e60bc8c82d0c72474"
+    },
+    {
+      "path": "runtime/evidence/baseline.json",
+      "sha256": "2a08577e96f88505d275e65e68792dcd0ab74f41d0eac55ae22fbbb74b96ea83"
+    },
+    {
+      "path": "runtime/run-gated-demo.sh",
+      "sha256": "f9e1f2f416a37280c72f6d7305e55bc5018c778c75f83477c98f32857a505dc6"
+    },
+    {
+      "path": "workflows/client-intake-pipeline.json",
+      "sha256": "4bcf9ab8664209bae7b9169226ab7dc6ab8232e9fe78e1395694e1c21bf96141"
+    }
+  ],
+  "head": "0e800e0916b90d5f2603ee1422bd7bf38cedcc82"
+}

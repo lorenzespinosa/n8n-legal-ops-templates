@@ -230,7 +230,7 @@
     },
     {
       "parameters": {
-        "content": "## Missed Call Recovery — Greenfield & Associates\n\n**Pattern:** Webhook (OpenPhone) → Extract Info → AI Intent Classification → Human Review → SMS Follow-up → Log\n\n- Only processes missed inbound calls\n- AI classifies caller intent (new client, existing, solicitor, unknown)\n- SMS requires human approval before sending\n- All calls logged to Airtable regardless of action taken"
+        "content": "## Historical Missed Call Recovery — Greenfield & Associates\n\nINSPECTION ONLY. The review-queue request connects directly to the OpenPhone SMS-send request; no reviewer approval is read or enforced. If configured and activated, this graph can attempt an outbound message without sign-off. Non-missed and failure paths are not all audit-logged. Do not connect a live messaging account."
       },
       "id": "b2c3d4e5-2222-4bbb-cccc-000000000011",
       "name": "Sticky Note — Overview",
@@ -243,7 +243,7 @@
     },
     {
       "parameters": {
-        "content": "## Human Review Gate\n\nBefore any SMS is sent, the proposed message is queued in Airtable for human review.\nIntake coordinator reviews the AI-suggested response, edits if needed, then approves.\n\nA separate n8n workflow (or Airtable automation) triggers the actual SMS send after approval.\n\n**No automated outbound messages without human sign-off.**"
+        "content": "## WARNING — SMS is not approval-gated\n\nThe node named Human Review Gate writes a queue row and then flows directly to Send SMS Follow-up — OpenPhone. There is no approval consumer, status check, or separate send workflow in this JSON. Queueing a proposed message is NOT consent or human authorization. Do not activate or connect live SMS; design and test a distinct approved-send path first."
       },
       "id": "b2c3d4e5-2222-4bbb-cccc-000000000012",
       "name": "Sticky Note — Human Review",
@@ -256,7 +256,7 @@
     },
     {
       "parameters": {
-        "content": "## Edge Cases\n\n- Repeated missed calls from same number: deduplicate in Airtable before SMS\n- Voicemail present: may skip SMS (caller left info already)\n- After-hours calls: queue for next business day review\n- Existing clients: route differently (may need case-specific response)"
+        "content": "## Unimplemented safeguards\n\nDuplicate-call suppression, voicemail handling, after-hours holding, and existing-client routing are design questions, not verified gates in this historical graph. Failure and non-missed paths do not guarantee an audit entry. Do not connect real messaging or infer consent, deduplication, or approval from these notes."
       },
       "id": "b2c3d4e5-2222-4bbb-cccc-000000000013",
       "name": "Sticky Note — Edge Cases",

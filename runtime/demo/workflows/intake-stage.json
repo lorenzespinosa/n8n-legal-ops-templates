@@ -1,0 +1,448 @@
+{
+  "name": "Gated Client Intake — Greenfield & Associates (Phase 2 Demo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gated-intake-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000001",
+      "name": "Webhook — Gated Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "webhookId": "gated-intake-webhook-greenfield"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate the intake payload under the pinned webhook envelope.\n// n8n 2.37.10 Webhook v2 nests the POST body under `body` and exposes the\n// request headers under `headers` (verified against the pinned image).\nconst raw = $input.first().json;\nconst input = raw.body ?? raw;\nconst errors = [];\n\n// Stable caller-supplied idempotency key: HTTP header first, body field as a\n// convenience fallback. No key, no staging — fail closed.\nconst key = String(raw.headers?.['x-intake-idempotency-key'] ?? input.idempotency_key ?? '').trim();\nif (!key) errors.push('Missing intake idempotency key (X-Intake-Idempotency-Key header)');\n\nif (!input.contact?.first_name) errors.push('Missing first_name');\nif (!input.contact?.last_name) errors.push('Missing last_name');\nif (!input.contact?.email && !input.contact?.phone) errors.push('Missing email and phone — need at least one');\nif (!input.case_info?.type) errors.push('Missing case type');\nif (!input.case_info?.description) errors.push('Missing case description');\n\n// Normalize phone to E.164 if present\nlet phone = input.contact?.phone || '';\nif (phone && !phone.startsWith('+')) {\n  phone = '+1' + phone.replace(/\\D/g, '');\n}\n\n// Strip nulls/empty strings\nconst cleanContact = Object.fromEntries(\n  Object.entries(input.contact || {}).filter(([_, v]) => v != null && v !== '')\n);\n\nconst normalized = {\n  contact: { ...cleanContact, ...(phone ? { phone } : {}) },\n  case_info: input.case_info,\n  source: input.source || 'unknown',\n  referral_source: input.referral_source || 'unknown',\n  timestamp: input.timestamp || null,\n  firm: 'Greenfield & Associates'\n};\n\n// Inline SHA-256 (the pinned sandbox forbids require) over the canonical\n// JSON of the six normalized delivery-relevant fields — the exact\n// canonicalization the demo state service recomputes authoritatively, so\n// the graph itself proves payload integrity before staging.\nconst sha256hex = (ascii) => {\n  const rightRotate = (value, amount) => (value >>> amount) | (value << (32 - amount));\n  const maxWord = Math.pow(2, 32);\n  let result = '';\n  const words = [];\n  const asciiBitLength = ascii.length * 8;\n  let hash = sha256hex.h = sha256hex.h || [];\n  const k = sha256hex.k = sha256hex.k || [];\n  let primeCounter = k.length;\n  const isComposite = {};\n  for (let candidate = 2; primeCounter < 64; candidate++) {\n    if (!isComposite[candidate]) {\n      for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;\n      hash[primeCounter] = (Math.pow(candidate, 0.5) * maxWord) | 0;\n      k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;\n    }\n  }\n  ascii += '\\x80';\n  while (ascii.length % 64 - 56) ascii += '\\x00';\n  for (let i = 0; i < ascii.length; i++) {\n    const j = ascii.charCodeAt(i);\n    if (j >> 8) return null;\n    words[i >> 2] |= j << (((3 - i) % 4) * 8);\n  }\n  words[words.length] = (asciiBitLength / maxWord) | 0;\n  words[words.length] = asciiBitLength;\n  for (let j = 0; j < words.length;) {\n    const w = words.slice(j, j += 16);\n    const oldHash = hash;\n    hash = hash.slice(0, 8);\n    for (let i = 0; i < 64; i++) {\n      const w15 = w[i - 15];\n      const w2 = w[i - 2];\n      const a = hash[0];\n      const e = hash[4];\n      const temp1 = hash[7]\n        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))\n        + ((e & hash[5]) ^ (~e & hash[6]))\n        + k[i]\n        + (w[i] = i < 16 ? w[i] : (\n          w[i - 16]\n          + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))\n          + w[i - 7]\n          + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))\n        ) | 0);\n      const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))\n        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));\n      hash = [(temp1 + temp2) | 0].concat(hash);\n      hash[4] = (hash[4] + temp1) | 0;\n    }\n    for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;\n  }\n  for (let i = 0; i < 8; i++) {\n    for (let j = 3; j + 1; j--) {\n      const b = (hash[i] >> (j * 8)) & 255;\n      result += (b < 16 ? '0' : '') + b.toString(16);\n    }\n  }\n  return result;\n};\nconst canonical = (v) => Array.isArray(v)\n  ? '[' + v.map(canonical).join(',') + ']'\n  : (v !== null && typeof v === 'object')\n    ? '{' + Object.keys(v).sort().map((key) => JSON.stringify(key) + ':' + canonical(v[key])).join(',') + '}'\n    : JSON.stringify(v ?? null);\n\nconst canonicalString = canonical({\n  contact: normalized.contact,\n  case_info: normalized.case_info,\n  source: normalized.source,\n  referral_source: normalized.referral_source,\n  firm: normalized.firm,\n  timestamp: normalized.timestamp,\n});\nconst payloadHash = sha256hex(unescape(encodeURIComponent(canonicalString)));\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors,\n    idempotency_key: key,\n    payload_hash: payloadHash,\n    contact: normalized.contact,\n    case_info: normalized.case_info,\n    source: normalized.source,\n    referral_source: normalized.referral_source,\n    timestamp: normalized.timestamp,\n    firm: normalized.firm\n  }\n}];"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000002",
+      "name": "Validate Intake",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000003",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000004",
+      "name": "Respond — Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mock-api:9090/demo/v1/intakes",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ idempotency_key: $json.idempotency_key, payload_hash: $json.payload_hash, contact: $json.contact, case_info: $json.case_info, source: $json.source, referral_source: $json.referral_source, timestamp: $json.timestamp, firm: $json.firm }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000005",
+      "name": "Stage Intake — Demo State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Interpret the demo state service's staged-intake response. Fail closed:\n// ONLY an explicit status=staged (201) or status=replay (200) body maps to a\n// truthful staged/replay outcome; the mock's 409 conflict body maps to an\n// explicit conflict; every other shape (non-fictional rejection, malformed,\n// unexpected) is a refusal whose own status code is surfaced — never a\n// pending-review claim.\nconst body = $input.first().json;\nconst isObject = body !== null && typeof body === 'object' && !Array.isArray(body);\nif (isObject && body.status === 'staged' && typeof body.review_id === 'string') {\n  return [{ json: { outcome: 'staged', review_id: body.review_id, review_state: body.review_state ?? 'pending' } }];\n}\nif (isObject && body.status === 'replay' && typeof body.review_id === 'string') {\n  return [{ json: { outcome: 'replay', review_id: body.review_id, review_state: body.review_state ?? 'unknown' } }];\n}\nif (isObject && body.code === 409) {\n  return [{ json: { outcome: 'conflict', refused_code: 409, refusal: typeof body.error === 'string' ? body.error : 'idempotency key conflict — a duplicate request is never approval' } }];\n}\nconst refusal = isObject && typeof body.error === 'string'\n  ? body.error\n  : 'the demo state service refused the staging — nothing was queued';\nconst refusedCode = isObject && typeof body.code === 'number' ? body.code : 400;\nreturn [{ json: { outcome: 'refused', refused_code: refusedCode, refusal } }];"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000009",
+      "name": "Interpret Stage Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "staged-check",
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "staged",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000a",
+      "name": "IF Staged",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'pending_review', message: 'Intake staged — awaiting explicit human review approval; no CRM attempt was made', review_id: $json.review_id, review_state: $json.review_state, crm_attempted: false }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000006",
+      "name": "Respond — Pending Review",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "replay-check",
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "replay",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000b",
+      "name": "IF Replay",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'replay', review_id: $json.review_id, review_state: $json.review_state, crm_attempted: false, message: 'Exact duplicate — the original review is returned unchanged; no second queue or CRM write occurred' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000c",
+      "name": "Respond — Intake Replay",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "conflict-check",
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "conflict",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000d",
+      "name": "IF Conflict",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'conflict', error: $json.refusal, crm_attempted: false }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000e",
+      "name": "Respond — Intake Conflict",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'refused', error: $json.refusal }) }}",
+        "options": {
+          "responseCode": "={{ $json.refused_code }}"
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-00000000000f",
+      "name": "Respond — Stage Refused",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Gated Client Intake (Phase 2 Demo)\n\n**Pattern:** Webhook → Validate → Stage → Interpret → (staged | replay | conflict | refused) → Respond → STOP\n\n- This graph stages a fictional intake and creates a PENDING review — nothing more.\n- It contains NO CRM node and NO CRM-capable edge: no path from this graph can attempt a CRM write.\n- Queueing a review is NOT approval. A separate reviewer action (approve/reject) recorded outside this graph is required before any delivery workflow may run.\n- Urgency is recorded as data only — urgency never bypasses review.\n- Idempotency: the graph computes the canonical payload hash in-graph (inline SHA-256 over the six normalized delivery-relevant fields) and forwards it with the stable intake key. Exact replay of key + hash returns the ORIGINAL review with zero new writes; the same key with changed canonical content fails closed with a truthful 409 conflict. A duplicate is never approval.\n- All requests and responses stay on the internal Docker network at http://mock-api:9090 with fictional Greenfield & Associates data only."
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000007",
+      "name": "Sticky Note — Gated Boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Validation Rules\n\n- Requires: X-Intake-Idempotency-Key header (stable caller key), first_name, last_name, at least one of email/phone, case type, description\n- Reads the payload from the pinned n8n webhook envelope (`body`), with a flat-read fallback\n- Phone normalized to E.164; nulls/empty strings stripped\n- The canonical payload hash is computed over the NORMALIZED fields exactly as staged — order-invariant, content-sensitive\n- Invalid submissions get a 400 response immediately and are never staged; staged-intake refusals (non-fictional data, hash mismatch) surface their own status codes truthfully"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000008",
+      "name": "Sticky Note — Validation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        660
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook — Gated Intake": {
+      "main": [
+        [
+          {
+            "node": "Validate Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Intake": {
+      "main": [
+        [
+          {
+            "node": "IF Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid": {
+      "main": [
+        [
+          {
+            "node": "Stage Intake — Demo State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Intake — Demo State": {
+      "main": [
+        [
+          {
+            "node": "Interpret Stage Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpret Stage Result": {
+      "main": [
+        [
+          {
+            "node": "IF Staged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Staged": {
+      "main": [
+        [
+          {
+            "node": "Respond — Pending Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Replay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Replay": {
+      "main": [
+        [
+          {
+            "node": "Respond — Intake Replay",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Conflict": {
+      "main": [
+        [
+          {
+            "node": "Respond — Intake Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Stage Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {},
+  "tags": [
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "intake"
+    },
+    {
+      "name": "greenfield-associates"
+    }
+  ]
+}

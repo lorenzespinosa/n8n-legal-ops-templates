@@ -1,0 +1,415 @@
+{
+  "name": "Reviewer Decision — Greenfield & Associates (Phase 2 Demo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reviewer-decision-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000001",
+      "name": "Webhook — Reviewer Decision",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "webhookId": "reviewer-decision-webhook-greenfield"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate the reviewer decision under the pinned webhook envelope.\n// n8n 2.37.10 Webhook v2 nests the POST body under `body` and exposes the\n// request headers under `headers` (verified against the pinned image).\n//\n// The one-time reviewer proof arrives as a header, is forwarded to the demo\n// state service for comparison/consumption, and is NEVER echoed into any\n// response, transition, or log line.\nconst raw = $input.first().json;\nconst input = raw.body ?? raw;\nconst errors = [];\n\nconst reviewId = typeof input.review_id === 'string' ? input.review_id.trim() : '';\nif (!reviewId) errors.push('Missing review_id');\n\n// Exact enum: possession of a review id, urgency, or any other data is never\n// a decision. Only the literal strings approve/reject pass.\nconst decision = typeof input.decision === 'string' ? input.decision.trim() : '';\nif (decision !== 'approve' && decision !== 'reject') {\n  errors.push('decision must be exactly \"approve\" or \"reject\" — no other value can be recorded');\n}\n\nconst proof = String(raw.headers?.['x-reviewer-proof'] ?? '').trim();\nif (!proof) errors.push('Missing one-time reviewer authorization (X-Reviewer-Proof header)');\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors,\n    review_id: reviewId,\n    decision,\n    reviewer_proof: proof\n  }\n}];"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000002",
+      "name": "Validate Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid-decision-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000003",
+      "name": "IF Decision Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000004",
+      "name": "Respond — Decision Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        880,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mock-api:9090/demo/v1/reviews/decision",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ review_id: $json.review_id, decision: $json.decision, reviewer_proof: $json.reviewer_proof }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000005",
+      "name": "Record Decision — Demo State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Interpret the demo state service's decision-record response.\n// Fail closed: ONLY an explicit status=recorded body with an approved or\n// rejected review_state counts as a recorded decision. Every other shape —\n// auth refusal, unknown review, conflict, malformed — is a refusal, and the\n// refusal's own error text (never the proof) is surfaced to the reviewer.\nconst body = $input.first().json;\nconst isObject = body !== null && typeof body === 'object' && !Array.isArray(body);\nconst recorded =\n  isObject &&\n  body.status === 'recorded' &&\n  (body.review_state === 'approved' || body.review_state === 'rejected');\n\nif (!recorded) {\n  const refusal = isObject && typeof body.error === 'string'\n    ? body.error\n    : 'the demo state service refused the decision — nothing was recorded';\n  const refusedCode = isObject && typeof body.code === 'number' ? body.code : 400;\n  return [{ json: { recorded: false, refused_code: refusedCode, refusal } }];\n}\n\nreturn [{\n  json: {\n    recorded: true,\n    review_id: body.review_id,\n    review_state: body.review_state,\n    decision: body.decision\n  }\n}];"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000006",
+      "name": "Interpret Decision Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "recorded-check",
+              "leftValue": "={{ $json.recorded }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000007",
+      "name": "IF Recorded",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'refused', recorded: false, error: $json.refusal }) }}",
+        "options": {
+          "responseCode": "={{ $json.refused_code }}"
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000008",
+      "name": "Respond — Decision Refused",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "approved-check",
+              "leftValue": "={{ $json.review_state }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000009",
+      "name": "IF Approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n:5678/webhook/gated-delivery-webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ review_id: $json.review_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000014",
+      "name": "Invoke Approved Delivery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'approved', review_id: $json.review_id ?? null, delivery: { status: $json.status ?? null, effect_id: $json.effect_id ?? null }, message: 'Approval recorded by an explicit reviewer action; delivery ran through the approved-delivery graph assertion' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000010",
+      "name": "Respond — Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'recorded', review_id: $json.review_id, review_state: $json.review_state, decision: $json.decision, message: 'Decision recorded; no CRM delivery exists for this outcome' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000011",
+      "name": "Respond — Decision Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Reviewer Decision Gate (Phase 2 Demo)\n\n**Pattern:** Webhook → Validate → Record decision → Interpret → Respond → STOP\n\n- Approval and rejection are SEPARATE, deliberate reviewer events — the only way a review leaves pending.\n- Authorization uses a per-registration-window proof forwarded to the internal mock service at http://mock-api:9090 which compares and consumes it once in that window. A privileged admin reset can re-register the same raw value for a later window; this local demo does not prove durable one-time authorization. Missing, wrong, or replayed proof within a window records no decision and gets a truthful non-success refusal.\n- Queueing a review is NOT approval. Urgency, possession of a review id, or expression fallbacks are never decisions.\n- ONLY the recorded approval branch invokes the separate approved-delivery workflow (in-network self-call); rejection and refusal branches have no delivery edge.\n- This graph has NO CRM capability: no path from here can attempt a CRM write. The delivery graph asserts the recorded approved state inside its own graph before its sole CRM node.\n- All responses and transitions carry hashes/masked identifiers only — the proof value never appears in output."
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000012",
+      "name": "Sticky Note — Reviewer Gate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Decision Rules\n\n- Requires: review_id of a KNOWN pending review, decision exactly approve or reject, X-Reviewer-Proof header carrying the current one-time proof\n- Reads the payload from the pinned n8n webhook envelope (`body`), with a flat-read fallback\n- Unknown review ids, already-finalized reviews, malformed bodies, and non-enum decisions fail closed with no recorded transition\n- Approval increments a dedicated approval-actions counter independent of the review queue"
+      },
+      "id": "c3d4e5f6-3333-4ccc-dddd-000000000013",
+      "name": "Sticky Note — Decision Rules",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook — Reviewer Decision": {
+      "main": [
+        [
+          {
+            "node": "Validate Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Decision": {
+      "main": [
+        [
+          {
+            "node": "IF Decision Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Decision Valid": {
+      "main": [
+        [
+          {
+            "node": "Record Decision — Demo State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Decision Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Decision — Demo State": {
+      "main": [
+        [
+          {
+            "node": "Interpret Decision Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpret Decision Record": {
+      "main": [
+        [
+          {
+            "node": "IF Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Recorded": {
+      "main": [
+        [
+          {
+            "node": "IF Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Decision Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Approved": {
+      "main": [
+        [
+          {
+            "node": "Invoke Approved Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond — Decision Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoke Approved Delivery": {
+      "main": [
+        [
+          {
+            "node": "Respond — Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {},
+  "tags": [
+    {
+      "name": "legal-ops"
+    },
+    {
+      "name": "reviewer-decision"
+    },
+    {
+      "name": "greenfield-associates"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "final_run_id": "final-20261004T151153Z",
+  "kind": "flagship-intake-release-attachments",
+  "phase_base": "2515498259a1e47ecb5088b2cb0ea22b3c63393b",
+  "prior_run_id": "final-20261004T151046Z",
+  "schema_version": 1,
+  "sha256": {
+    "baseline_record": "2a08577e96f88505d275e65e68792dcd0ab74f41d0eac55ae22fbbb74b96ea83",
+    "final_record": "76795a5203570a16cd37e667e8720927353a68c648253e8c786bf302b6df7200",
+    "prior_record": "59034a01f27ffd640e0cb073fce7dc6290980467d1cd5468b6eda0f9cca1d36b",
+    "source_manifest": "c7bf1c214daac6143b5abd8a90ee182eaa4ea1964cb3f15a2bdd1f3dad4128f0"
+  },
+  "source_run_commit": "0e800e0916b90d5f2603ee1422bd7bf38cedcc82"
+}

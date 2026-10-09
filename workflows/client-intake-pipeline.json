@@ -327,7 +327,7 @@
     },
     {
       "parameters": {
-        "content": "## Client Intake Pipeline — Greenfield & Associates\n\n**Pattern:** Webhook → Validate → Deduplicate → AI Classify → Human Review Gate → Route\n\n- All decision-making goes through a human review queue before CRM writes\n- AI classification provides recommendation only — humans approve\n- Urgent cases trigger Slack alert for immediate attention\n- Existing contacts get updated, not duplicated"
+        "content": "## Historical Client Intake — Greenfield & Associates\n\nINSPECTION ONLY. This single-graph template queues a review request but does not wait for or verify a reviewer decision. The CRM path can proceed after the queue write; an urgent Slack alert is not approval. An unpublished prior local diagnostic observed this tracked source returning HTTP 400 for the fictional fixture on pinned n8n; the public attachments do not independently reproduce that observation. Do not connect real accounts or activate this file. The separately tested, fictional approval-gated sandbox is in runtime/demo/."
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000015",
       "name": "Sticky Note — Overview",
@@ -340,7 +340,7 @@
     },
     {
       "parameters": {
-        "content": "## Human Review Gate\n\nEvery new intake is queued for human review before any CRM write happens.\nThe review queue lives in Airtable. An intake coordinator reviews and approves before the contact is created in Lawmatics.\n\nThis is a MANDATORY gate — no automated CRM writes without human approval."
+        "content": "## WARNING — Queue write is not human approval\n\nThe review queue has no consumer in this historical repository. The graph proceeds toward its Lawmatics CRM-create node without checking an approved decision. It does NOT enforce a mandatory human gate. Do not activate this workflow with real credentials or client records; use the separate tested runtime/demo/ graphs for the fictional demonstration."
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000016",
       "name": "Sticky Note — Human Review",
@@ -353,7 +353,7 @@
     },
     {
       "parameters": {
-        "content": "## Validation Rules\n\n- Requires: first_name, last_name, at least one of email/phone, case type, description\n- Phone normalized to E.164\n- Nulls/empty strings stripped\n- Invalid submissions get 400 response immediately"
+        "content": "## Historical validation, not an accepted intake flow\n\nThe Code node expects flat first_name, last_name, contact, case type, and description fields. On pinned n8n the bundled Webhook supplies a nested body; an unpublished prior local diagnostic observed the unchanged source returning HTTP 400 to the fictional fixture; the public attachments do not independently reproduce that observation. The separately adapted local copy tested this mismatch and the ungated CRM path. Do not treat this source JSON as a ready-to-run client intake."
       },
       "id": "a1b2c3d4-1111-4aaa-bbbb-000000000017",
       "name": "Sticky Note — Validation",

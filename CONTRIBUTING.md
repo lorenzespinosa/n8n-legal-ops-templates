@@ -1,6 +1,6 @@
 # Contributing to n8n-legal-ops-templates
 
-Thank you for contributing. This repo provides production-quality n8n workflow templates for legal operations — contributions must meet the same quality bar.
+Thank you for contributing. The four original `workflows/*.json` files are historical examples for inspection, **not production-ready templates**. The separately tested `runtime/demo/` client-intake sandbox uses fictional data and a mock CRM; it is not a live legal integration. A contribution must not imply that a review-queue write alone enforces approval.
 
 ## Before You Submit
 
@@ -12,11 +12,11 @@ Thank you for contributing. This repo provides production-quality n8n workflow t
 - [ ] All phone numbers use 555-format, all IDs use `matter_99999` pattern
 - [ ] No real client names, case numbers, or PII anywhere
 - [ ] Node names follow the `CATEGORY - Action (System)` convention
-- [ ] Human review gates are present on all decision-making workflows
+- [ ] Any new consequential CRM, messaging, billing, or assignment path has an explicit, independently tested approval control; do not copy the ungated historical paths
 
 ## Legal Compliance
 
-These templates provide workflow logic patterns only — never legal advice. All workflows that make decisions (case routing, conflict checks, urgency scoring) MUST include a human-in-the-loop gate before any action is taken.
+These files are not legal advice or a substitute for a production safety review. The original client-intake, missed-call, and case-routing graphs **do not** enforce human approval before their downstream actions; the historical billing formatter does **not** detect duplicate matter IDs. Do not connect them to real accounts. A new workflow that takes consequential action must be independently designed and tested with an explicit authorization boundary before anyone considers live use.
 
 ## Workflow JSON Standards
 
@@ -24,7 +24,7 @@ These templates provide workflow logic patterns only — never legal advice. All
 - Pin `typeVersion` to the version you tested against
 - Set `active: false` in the root of the JSON
 - Strip instance-specific fields: `meta.instanceId`, root `id`
-- Error handling: import the patterns from [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern)
+- Error handling: refer to [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern) as design guidance; its sub-workflows are not imported by the historical JSON files
 
 ## Pull Request Process
 
@@ -33,7 +33,7 @@ These templates provide workflow logic patterns only — never legal advice. All
 3. Add matching sample payloads in `payloads/` (success + failure paths)
 4. Update `CHANGELOG.md` with your addition
 5. Run the pre-submit checklist above
-6. Open a PR — the CI will validate JSON syntax and check for credentials
+6. Open a PR — the existing CI checks JSON syntax and a few credential/active-flag string patterns; it does **not** prove a human gate, complete secret absence, consent, or runtime safety
 
 ## Reporting Issues
 

@@ -1,25 +1,45 @@
 # n8n-legal-ops-templates
 
-> Production-grade n8n workflow templates for law firm operations — client intake, missed call recovery, billing sync, and case routing. Generic patterns using fictional "Greenfield & Associates" — zero real client data.
+> Fictional-data examples for legal-operations handoffs. The historical templates in `workflows/` are not deployment-ready. The separately tested client-intake sandbox lives in `runtime/demo/`; see `docs/case-study.md` for evidence and limits.
 
-**Tested on:** n8n v1.x.x | **License:** MIT | **Status:** Active
+**Tested sandbox:** n8n 2.37.10, digest-pinned, local mocks | **Historical templates:** examples, not runtime-accepted | **License:** MIT
 
-> **Disclaimer:** These templates provide workflow logic patterns only — not legal advice. All decision-making workflows include human review gates. Consult your bar association's rules before automating legal processes.
+> **Safety note:** This repository is not legal advice or a production integration. The historical intake graph queues a review request but does not require approval before its CRM node. Do not activate the historical templates with real records or connect live services on the strength of this README. The tested sandbox uses fictional records, a test-simulated reviewer action, and a mock CRM.
 
 ---
 
-## What It Does
+## Tested client-intake sandbox
 
-Reusable n8n workflow templates for common law firm operations:
+The new implementation has separate `intake-stage`, `reviewer-decision`, and `approved-delivery` n8n graphs. Intake validates and stages a fictional record; a separately recorded, **test-simulated** reviewer decision must authorize delivery. The mock CRM counts write attempts and committed effects independently. On pinned n8n 2.37.10, five case groups passed: the unapproved and rejected paths made zero CRM attempts; approved delivery made one attempt and one committed effect; the pre-commit failure/retry case made two attempts and one effect. These are local engineering results, not a client outcome or a production guarantee.
+
+From the repository root, with Docker running and the pinned image already cached:
+
+```bash
+./runtime/run-gated-demo.sh
+./runtime/run-clean-rerun.sh
+node runtime/scripts/final-evidence.mjs verify runtime/evidence/final-evidence-log.json
+```
+
+The clean rerun is **verification-only**: it compares a new test run against the accepted record and discards its candidate. It does not rewrite the committed evidence or the buyer documents. `./runtime/run-final-evidence.sh` is a separate, explicit republishing action; a new accepted record would require the case study and excerpt to be reviewed and realigned. Read `runtime/README.md`, `docs/case-study.md`, and `docs/evidence-summary.md` before using any result. Automated approvals are simulated reviewer input; proof reuse after a privileged reset, disk-backed fictional mock state, and untested failure modes are disclosed in the case study. No external service or live account is contacted by the sandbox.
+
+## Historical template index — inspection only
+
+The four original JSON files under `workflows/` are preserved for inspection. They contain real external-service URLs with placeholder identifiers and missing credential bindings; importing and configuring them can attempt external calls. They have not been accepted as working, approval-gated deployments on the pinned runtime. An unpublished prior local diagnostic observed the original intake webhook returning HTTP 400 on pinned n8n; the public attachments do not independently reproduce that observation. Only a narrowly adapted local runtime copy reached HTTP 202 and exposed an ungated mock CRM write in the committed baseline. Do not mistake the historical files for the tested three-graph sandbox.
+
+## What it does
+
+Historical n8n examples for common law-firm operations:
 
 - **Client intake pipeline** — webhook capture → validate → classify → route to CRM
 - **Missed call recovery** — OpenPhone webhook → AI classify → SMS follow-up
-- **Billing sync** — case management → billing system with conflict resolution
+- **Billing sync** — case management → billing system with conflict detection and a manual-review queue
 - **Case routing** — AI-powered case type classification → attorney assignment
 
-All workflows use the error handling patterns from [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern).
+The historical examples refer to [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern). Inspect each graph and its error paths independently before adapting it.
 
-## System Architecture
+## Historical conceptual architecture (not an approval-gated implementation)
+
+This diagram sketches the older single-graph flow. It is **not** the tested sandbox's three-graph architecture; the old path to CRM does not wait for an approval decision.
 
 ```mermaid
 flowchart LR
@@ -44,15 +64,9 @@ flowchart LR
     REJ --> LOG
 ```
 
-## Template Index
+## Original workflow files
 
-Four importable workflows live in `workflows/`. Each is self-contained, uses
-HTTP Request nodes (so it works with any CRM/billing/case API you point it at),
-and ships with inline sticky-note docs inside the canvas.
-
-Every HTTP Request node is configured with `retryOnFail` (3 tries, 5s backoff)
-and `onError: stopWorkflow`, so transient API failures retry and hard failures
-surface to your error workflow instead of being swallowed.
+Four historical JSON examples live in `workflows/`. They are not self-contained deployments: external-service URLs are real, while identifiers and credential bindings are placeholders. Approval and error behavior must be audited rather than inferred from sticky notes or generic retry settings. For a measured client-intake gate, use the separate local sandbox above.
 
 ---
 
@@ -60,8 +74,9 @@ surface to your error workflow instead of being swallowed.
 
 - **What it does:** Captures an intake form submission, validates required
   fields, normalizes the phone to E.164, deduplicates against existing
-  contacts, runs AI case-type classification, then queues the lead for human
-  review before any CRM write. Urgent cases fire a Slack alert.
+  contacts, runs AI case-type classification, and queues a review request. The
+  queue has no approval consumer in this repository; the graph proceeds toward
+  its CRM node without a recorded reviewer decision. Do not deploy this file.
 - **Trigger:** Webhook (`POST` to path `intake-webhook`).
 - **Key nodes:** Webhook · Code (validate/normalize) · IF (dedupe + routing) ·
   HTTP Request (Airtable dedupe lookup, AI classify, review-queue write,
@@ -72,10 +87,12 @@ surface to your error workflow instead of being swallowed.
 
 ### 2. Missed Call Recovery — `missed-call-recovery.json`
 
-- **What it does:** Receives an OpenPhone missed-call webhook, extracts caller
-  info, runs AI intent classification (new client / existing / solicitor /
-  unknown), and queues a proposed SMS follow-up for human approval. All calls
-  are logged regardless of outcome; non-client calls log and exit.
+- **What the historical graph attempts:** Receives an OpenPhone missed-call
+  webhook, extracts caller info, runs AI intent classification, and writes to a
+  review queue. If configured and activated, that queue node flows directly to
+  an OpenPhone SMS-send request; there is **no approval consumer or condition**
+  between them. This is not safe to use for real messaging. Failure paths and
+  non-missed calls can terminate without an audit-log write.
 - **Trigger:** Webhook (`POST` to path `missed-call-webhook`).
 - **Key nodes:** Webhook · Code (extract/classify prep) · IF (call-type
   routing) · HTTP Request (AI classify, Airtable review queue + logging,
@@ -83,17 +100,17 @@ surface to your error workflow instead of being swallowed.
 - **Credentials (by type):** HTTP Header Auth — for the AI provider, Airtable,
   and OpenPhone.
 - **Sample payload:** `payloads/missed-call-webhook.json`.
-- **Note:** SMS is *not* sent automatically — a separate approval step (n8n
-  follow-up workflow or Airtable automation) triggers the actual send after a
-  coordinator signs off. Confirm TCPA/consent rules before any outbound SMS.
+- **Note:** The historical graph does **not** implement SMS approval. Do not
+  connect it to a real messaging account. Any adapted send path needs its own
+  tested authorization and independent review of applicable consent rules.
 
 ### 3. Billing Sync — `billing-sync.json`
 
-- **What it does:** On a weekday schedule, pulls unbilled time from the case
-  management system, maps records to the billing API's shape, strips null
-  values, routes conflicts (zero/negative hours, missing matter IDs,
-  duplicates) to a manual-review queue with a Slack alert, and syncs valid
-  records in batches.
+- **What the historical graph attempts:** On a weekday schedule, pulls
+  unbilled time, maps records, and queues entries with missing matter IDs or
+  non-positive hours for manual review and a Slack alert. Other records can
+  proceed to the Clio request. The executable check does **not** detect
+  duplicate matter IDs or guarantee idempotency; do not use it for live billing.
 - **Trigger:** Schedule (cron `0 6 * * 1-5` — 06:00, Mon–Fri).
 - **Key nodes:** Schedule Trigger · Code (transform/batch) · IF (conflict
   split) · HTTP Request (Filevine fetch, Clio create, Airtable conflict queue +
@@ -104,10 +121,11 @@ surface to your error workflow instead of being swallowed.
 
 ### 4. Case Routing — `case-routing.json`
 
-- **What it does:** Validates an inbound case webhook, runs AI case-type
-  classification plus an urgency score, gates the result through a human review
-  queue, then routes by case type via a Switch node to the assigned attorney,
-  notifies Slack, and audit-logs the assignment.
+- **What it illustrates:** Validates an inbound case webhook, runs AI case-type
+  classification plus an urgency score, queues a review request, then sketches
+  assignment and notification paths. A queue write alone is not proof that a
+  human approval gates those paths; this graph was not accepted as a tested
+  approval-gated deployment.
 - **Trigger:** Webhook (`POST` to path `case-routing-webhook`).
 - **Key nodes:** Webhook · Code (validate, build assignment) · IF / Switch
   (route by `case_type`) · HTTP Request (AI classify, Airtable review queue +
@@ -116,52 +134,32 @@ surface to your error workflow instead of being swallowed.
   your assignment system, and Slack.
 - **Sample payload:** `payloads/case-routing-result.json`.
 
-> All sample payloads use the fictional firm "Greenfield & Associates" — a
-> made-up personal injury practice. Phone numbers use 555-format, case IDs use
-> the `matter_99999` pattern. **Zero real client data.**
+> Bundled sample payloads use the fictional firm "Greenfield & Associates".
+> Keep real client names, matter details, credentials, and contact data out of
+> this repository and the local demo.
 
-## How to use these templates
+## How to inspect safely
 
-1. **Import the workflow.** In n8n: **Workflows → Import from File** and select a
-   JSON from `workflows/`. (Or paste the JSON via **Import from URL/Clipboard**.)
-2. **Create credentials.** Each workflow uses **HTTP Header Auth** credentials —
-   one per downstream service. In n8n, create an HTTP Header Auth credential
-   (e.g. header `Authorization: Bearer <token>`) for each API the workflow
-   calls, then select it on the matching HTTP Request node. No secrets are
-   stored in the JSON; credentials are referenced by type only.
-3. **Set the webhook URL / schedule.** For webhook-triggered workflows, copy the
-   generated production webhook URL into the upstream system (intake form,
-   OpenPhone, etc.). For Billing Sync, adjust the cron in the Schedule Trigger.
-4. **Wire your error workflow.** These templates assume the sub-workflows from
-   [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern).
-   Set it under **Workflow Settings → Error Workflow** so hard failures (after
-   retries) are captured.
-5. **Test with sample payloads.** Send the matching file from `payloads/` to the
-   webhook (or pin it as test data) and confirm the flow before going live.
-6. **Activate.** Only set the workflow active after a successful test run. Keep
-   the human-review gates in place — every decision workflow here is designed to
-   require sign-off before a write.
-
-> **Validate before importing:** these templates pass
-> [n8n-lint](https://github.com/lorenzespinosa/n8n-lint) with zero issues (no
-> `meta.instanceId`, no leaked credentials, error handling on every HTTP node).
-> Run `npx n8n-lint workflows/` to re-check after you edit them.
+1. Read the [case study](docs/case-study.md) and [runtime guide](runtime/README.md) for the tested, fictional client-intake sandbox. Run its local acceptance suite only with the cached pinned image and no real records or accounts.
+2. Treat `workflows/` as historical source. Review each JSON graph and its external endpoints offline; the old client-intake file's review queue does not prevent the CRM path. Do not import or activate these examples in a live environment.
+3. [n8n-lint](https://github.com/lorenzespinosa/n8n-lint) can help inspect workflow JSON, but a structural lint result is not proof of a runtime approval gate, valid credentials, reliable retry behavior, or safe deployment.
+4. Before adapting any pattern for a real system, design and test its authorization, consent, idempotency, failure recovery, data custody, and human operating procedure for that system. None of those production checks is supplied by this demo.
 
 ## Multi-Platform
 
 | Platform | Coverage |
 |----------|---------|
-| n8n | Full workflow JSON (importable) |
+| n8n | Historical JSON examples for inspection; separate locally tested intake sandbox |
 | Make | `docs/make-equivalent.md` — conceptual rebuild guide |
 | Zapier | `docs/zapier-equivalent.md` — conceptual rebuild guide |
 
-## Business Impact
+## Results and limits
 
-*(Coming in v0.2.0 — intake time reduction, billing accuracy metrics)*
+This repository contains counted **mock** CRM attempts/effects and test verdicts, not measured savings, intake-time reduction, billing accuracy, or a live client outcome. See [evidence summary](docs/evidence-summary.md) for the actual local counts and limitations.
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). All contributions require the pre-submit checklist. Extra emphasis: no real PII, human review gates on all decision workflows.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Keep real client data out of contributions. Changes to the tested sandbox must preserve and re-test its recorded approval boundary; the historical templates are not certified as human-gated.
 
 ## License
 
@@ -169,31 +167,21 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). All contributions require the pre-subm
 
 ---
 
-## Quick Start
+## Quick start for the fictional sandbox
 
-```bash
-# Clone and explore
-git clone https://github.com/lorenzespinosa/n8n-legal-ops-templates.git
-cd n8n-legal-ops-templates
-
-# Import workflows into n8n
-# 1. First import error handling patterns from n8n-error-handling-pattern
-# 2. Then import legal ops workflows from workflows/
-# 3. Configure credential placeholders
-# 4. Test with Greenfield & Associates sample payloads from payloads/
-```
+Read `docs/case-study.md`, then run `./runtime/run-gated-demo.sh` from a local checkout with Docker running and the pinned n8n image cached. This runs only against fictional local mocks and removes its owned containers after the tests. The historical `workflows/` files are not the tested implementation.
 
 ## Related Projects
 
-- [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern) — Error handling sub-workflows imported by these templates
-- [n8n-ai-agent-delegator](https://github.com/lorenzespinosa/n8n-ai-agent-delegator) — Multi-agent AI system that can integrate with these legal ops workflows
+- [n8n-error-handling-pattern](https://github.com/lorenzespinosa/n8n-error-handling-pattern) — Reference patterns for designing error handling; not imported by the historical JSON files
+- [n8n-ai-agent-delegator](https://github.com/lorenzespinosa/n8n-ai-agent-delegator) — Separate experimental project; no integration with these historical templates is verified here
 
 ---
 
 <!-- hire-cta -->
-## 👋 Built by Lorenz Espinosa
+## Built by Lorenz Espinosa
 
-I design and ship production automation for ops-heavy businesses — webhook-driven, AI-powered systems with validation, retries, and audit logging baked in. **50+ processes automated · $800K+ saved.**
+I help teams connect the tools they already use, with validation, review points, documentation, and support. The case study above is a fictional-data engineering test, not a client's results. For a first inquiry, send a general description of the process and tools; please omit client names and confidential details.
 
 **Want something like this built for your team?**
 

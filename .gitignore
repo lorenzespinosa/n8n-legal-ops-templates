@@ -15,6 +15,15 @@ n8n-database.sqlite-journal
 .n8n/
 n8nEventLog*
 
+# Ephemeral baseline-runtime artifacts (derived workflow copy, credential import)
+runtime/.generated/
+
+# Ephemeral gated-demo runtime artifacts (import copy, launcher lock)
+runtime/demo/.generated/
+
+# Preserved census forensics from failed gated runs (recorded vs current universe)
+runtime/demo/.census-forensics/
+
 # OS
 .DS_Store
 Thumbs.db

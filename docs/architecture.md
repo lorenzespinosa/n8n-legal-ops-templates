@@ -1,8 +1,10 @@
-# Legal Ops System Architecture
+# Historical Legal-Ops Patterns — Not a Deployment Architecture
 
 ## Overview
 
-These templates form an integrated system for law firm operations. Each workflow handles one domain but they connect through shared patterns.
+The four original `workflows/*.json` files are illustrative, importable historical examples, not an integrated, tested, or deployment-ready system. They contain real external-service hosts with placeholder identifiers and missing credential bindings; configuring them may make outbound calls. The separately tested fictional-data client-intake sandbox is under `runtime/demo/`. Do not connect the older files to live accounts or client records.
+
+The sketch below is conceptual only. It does **not** prove the historical graphs are connected, approval-gated, failure-safe, or fully audit-logged.
 
 ```
                     ┌──────────────┐
@@ -38,7 +40,7 @@ These templates form an integrated system for law firm operations. Each workflow
 
 ## Data Flow
 
-All systems use Airtable as a staging/buffer layer between source systems. This prevents direct API coupling and provides an audit trail.
+Some historical paths write to an Airtable queue, but that write is not a reviewer decision and does not prevent downstream CRM, SMS, or assignment attempts. The error-handler, dead-letter, and audit paths drawn below are design intentions, not acceptance-tested controls on every branch.
 
 ```
 Source → Airtable (staging) → Destination
@@ -48,11 +50,11 @@ Source → Airtable (staging) → Destination
           Audit Log (PII masked)
 ```
 
-## Human Review Gates
+## Review boundary — what the historical graphs actually do
 
-Every decision-making workflow includes a mandatory human review gate:
-- **Case routing:** Attorney assignment requires human approval
-- **Missed call recovery:** SMS send requires human approval
-- **Intake classification:** High-urgency cases route to Slack for immediate review
+- **Client intake:** a queue write has no approval consumer; the CRM path can proceed without a recorded reviewer decision. An urgent Slack alert is not approval.
+- **Missed-call recovery:** the node named Human Review Gate flows directly to an OpenPhone SMS-send request. There is no enforced sign-off or consent check between those nodes.
+- **Case routing:** the queue does not block attorney-assignment requests until a reviewer decision is recorded.
+- **Billing sync:** the conflict predicate flags missing matter IDs and non-positive hours, not duplicate matters; valid-looking entries can proceed toward Clio independently of the conflict queue.
 
-No fully autonomous legal decisions. Ever.
+Only the **separate fictional intake sandbox** in `runtime/demo/` has a counted, test-simulated reviewer-decision gate before a mock CRM write. It is not a live legal workflow or evidence that the other historical templates are safe. Do not activate those templates with real systems.
