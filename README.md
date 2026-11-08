@@ -163,7 +163,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). Keep real client data out of contribut
 
 ## License
 
-[MIT](./LICENSE) © 2024 Lorenz Espinosa
+[MIT](./LICENSE) © 2025 Lorenz Espinosa
 
 ---
 
